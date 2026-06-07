@@ -1,9 +1,11 @@
 # Debugger
 
-The debugger is an interactive REPL around the C stepping engine.
+The debugger is intentionally small but usable. It runs bytecode through the C stepping engine rather than the NASM loop so it can stop between instructions.
+
+Start it:
 
 ```sh
-./build/waivm debug examples/call.wai
+waivm debug examples/sum.wai
 ```
 
 ## Commands
@@ -12,30 +14,33 @@ The debugger is an interactive REPL around the C stepping engine.
 |---|---|
 | `help` | show available commands |
 | `regs` | print registers, `ip`, `sp`, `zf`, halt state, and print count |
-| `ip` | print current instruction pointer |
-| `dis` | disassemble around current `ip` |
-| `mem <addr> [bytes]` | dump up to 256 bytes of VM memory |
+| `ip` | print the current instruction pointer |
+| `dis` | disassemble a small window around `ip` |
+| `mem <addr> [bytes]` | dump up to 256 memory bytes |
 | `stack [count]` | dump stack qwords from `sp` |
 | `step` / `s` | execute one instruction |
 | `continue` / `c` | run until halt, error, or breakpoint |
-| `break <ip>` / `b <ip>` | set breakpoint at instruction index |
-| `clear <ip>` | remove breakpoint |
+| `break <ip>` / `b <ip>` | set breakpoint |
+| `clear <ip>` | clear breakpoint |
 | `quit` / `q` | exit debugger |
 
 ## Example Session
 
 ```text
+waivm debugger. type 'help' for commands.
 waidbg> dis
-> 0000  mov r0, 21
-  0001  call 4
-  0002  print r0
-waidbg> break 2
-breakpoint set at 2
-waidbg> c
-breakpoint hit at 2
+> 0000  mov r0, 10
+  0001  mov r1, 0
+  0002  add r1, r0
+waidbg> break 5
+breakpoint set at 5
+waidbg> continue
+breakpoint hit at 5
 waidbg> regs
-r0=42  r1=0  r2=0  r3=0  r4=0  r5=0  r6=0  r7=0
-ip=2 sp=65536 zf=0 halted=0 prints=0
+r0=0  r1=55  r2=0  r3=0  r4=0  r5=0  r6=0  r7=0
+ip=5 sp=65536 zf=1 halted=0 prints=0
 ```
 
-The debugger intentionally uses C stepping rather than the NASM run loop. This keeps breakpoint handling and inspection simple while preserving the assembly runtime for normal execution.
+## Notes
+
+The debugger has no source-level symbol table yet. Breakpoints use instruction indexes shown by `dis`.

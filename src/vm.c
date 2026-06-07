@@ -129,6 +129,14 @@ static void update_zf(wai_vm *vm, wai_value value) {
     vm->zf = value == 0 ? 1u : 0u;
 }
 
+static wai_error_code check_shift(wai_vm *vm, wai_value shift, uint8_t *out) {
+    if (shift < 0 || shift > 63) {
+        return set_error(vm, WAI_ERR_BAD_SHIFT);
+    }
+    *out = (uint8_t)shift;
+    return WAI_OK;
+}
+
 wai_error_code wai_vm_step(wai_vm *vm) {
     if (vm == NULL || vm->code == NULL) {
         return WAI_ERR_PARSE;
@@ -147,6 +155,7 @@ wai_error_code wai_vm_step(wai_vm *vm) {
     uint8_t b = ins->b;
     wai_value value = 0;
     uint64_t address = 0;
+    uint8_t shift = 0;
 
     switch ((wai_opcode)ins->opcode) {
         case WAI_OP_MOV_IMM:
@@ -200,6 +209,19 @@ wai_error_code wai_vm_step(wai_vm *vm) {
             value = vm->regs[b];
             if (value == 0) { return set_error(vm, WAI_ERR_DIV_ZERO); }
             vm->regs[a] /= value;
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_MOD_IMM:
+            if (!valid_reg(a)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            if (ins->imm == 0) { return set_error(vm, WAI_ERR_DIV_ZERO); }
+            vm->regs[a] %= ins->imm;
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_MOD_REG:
+            if (!valid_reg(a) || !valid_reg(b)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            value = vm->regs[b];
+            if (value == 0) { return set_error(vm, WAI_ERR_DIV_ZERO); }
+            vm->regs[a] %= value;
             update_zf(vm, vm->regs[a]);
             return WAI_OK;
         case WAI_OP_JMP:
@@ -289,6 +311,67 @@ wai_error_code wai_vm_step(wai_vm *vm) {
                 if (check_jump(vm, ins->imm) != WAI_OK) { return vm->error; }
                 vm->ip = (uint64_t)ins->imm;
             }
+            return WAI_OK;
+        case WAI_OP_NOP:
+            return WAI_OK;
+        case WAI_OP_AND_IMM:
+            if (!valid_reg(a)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] & (uint64_t)ins->imm);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_AND_REG:
+            if (!valid_reg(a) || !valid_reg(b)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] & (uint64_t)vm->regs[b]);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_OR_IMM:
+            if (!valid_reg(a)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] | (uint64_t)ins->imm);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_OR_REG:
+            if (!valid_reg(a) || !valid_reg(b)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] | (uint64_t)vm->regs[b]);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_XOR_IMM:
+            if (!valid_reg(a)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] ^ (uint64_t)ins->imm);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_XOR_REG:
+            if (!valid_reg(a) || !valid_reg(b)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] ^ (uint64_t)vm->regs[b]);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_NOT:
+            if (!valid_reg(a)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            vm->regs[a] = (wai_value)(~(uint64_t)vm->regs[a]);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_SHL_IMM:
+            if (!valid_reg(a)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            if (check_shift(vm, ins->imm, &shift) != WAI_OK) { return vm->error; }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] << shift);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_SHL_REG:
+            if (!valid_reg(a) || !valid_reg(b)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            if (check_shift(vm, vm->regs[b], &shift) != WAI_OK) { return vm->error; }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] << shift);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_SHR_IMM:
+            if (!valid_reg(a)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            if (check_shift(vm, ins->imm, &shift) != WAI_OK) { return vm->error; }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] >> shift);
+            update_zf(vm, vm->regs[a]);
+            return WAI_OK;
+        case WAI_OP_SHR_REG:
+            if (!valid_reg(a) || !valid_reg(b)) { return set_error(vm, WAI_ERR_BAD_REGISTER); }
+            if (check_shift(vm, vm->regs[b], &shift) != WAI_OK) { return vm->error; }
+            vm->regs[a] = (wai_value)((uint64_t)vm->regs[a] >> shift);
+            update_zf(vm, vm->regs[a]);
             return WAI_OK;
         case WAI_OP_INVALID:
         default:

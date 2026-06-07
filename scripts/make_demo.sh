@@ -8,6 +8,7 @@ cmake --build build
 ./build/waivm run examples/factorial.wai
 ./build/waivm run examples/memory.wai
 ./build/waivm run examples/call.wai
-./build/waivm asm examples/call.wai -o call.waibc
-./build/waivm info call.waibc
-./build/waivm dis call.waibc
+./build/waivm run examples/bitwise.wai
+./build/waivm asm examples/bitwise.wai -o bitwise.waibc
+./build/waivm info bitwise.waibc
+./build/waivm dis bitwise.waibc

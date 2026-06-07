@@ -2,42 +2,55 @@
 
 ## v0.1
 
-- register-only VM;
+Implemented:
+
+- register VM;
+- arithmetic and branch instructions;
+- `.wai` source assembler;
 - NASM execution loop;
-- C assembler for `.wai` files;
-- core arithmetic, branches, print, halt;
 - basic examples and tests.
 
 ## v2
 
-- `.waibc` binary file writer/reader;
-- bytecode validation;
+Implemented:
+
+- `.waibc` bytecode writer/reader;
 - `asm`, `dis`, `info`, and `debug` commands;
-- C stepping engine for debugger;
+- bytecode validation;
 - documentation and CI polish.
 
 ## v3
 
-- 64 KiB VM memory;
+Implemented:
+
 - `load` and `store` instructions;
 - VM stack with `push` and `pop`;
 - `call` and `ret`;
 - `cmp`, `je`, and `jne`;
-- debugger memory dump;
-- debugger stack dump;
+- debugger memory and stack dumps;
 - memory/call/compare examples and tests.
+
+## v4
+
+Implemented:
+
+- `nop`;
+- signed integer remainder via `mod`;
+- bitwise `and`, `or`, `xor`, and `not`;
+- logical `shl` and `shr`;
+- shift-count validation;
+- bitwise/modulo examples and tests;
+- updated bytecode version and documentation.
 
 ## Later Candidates
 
-These are deliberately not implemented yet:
+Do not treat these as implemented:
 
-- stack-frame ABI;
-- local variable conventions;
-- function arguments/returns beyond raw registers and stack;
+- source-level debug symbols;
+- call frames and a real VM calling convention;
 - static data section in `.waibc`;
-- heap allocation;
-- strings;
-- floating point values;
-- richer debugger commands;
+- richer memory operand syntax;
+- function arguments/returns beyond raw registers and stack;
 - Windows x64 runtime;
-- JIT compilation.
+- JIT compilation;
+- heap allocation or garbage collection.

@@ -51,6 +51,27 @@ int main(void) {
     failures += require(program.code[8].opcode == WAI_OP_CALL, "call opcode expected");
     wai_program_free(&program);
 
+    const char *v4_source =
+        "nop\n"
+        "mov r0, 39\n"
+        "mod r0, 10\n"
+        "and r0, 15\n"
+        "or r0, 32\n"
+        "xor r0, 7\n"
+        "not r0\n"
+        "shl r0, 1\n"
+        "shr r0, 2\n"
+        "halt\n";
+    result = wai_assemble_source(v4_source, &program);
+    failures += require(result.error == WAI_OK, "assembler should accept v4 bitwise instructions");
+    failures += require(program.count == 10u, "v4 source should have 10 instructions");
+    failures += require(program.code[0].opcode == WAI_OP_NOP, "nop opcode expected");
+    failures += require(program.code[2].opcode == WAI_OP_MOD_IMM, "mod immediate opcode expected");
+    failures += require(program.code[4].opcode == WAI_OP_OR_IMM, "or immediate opcode expected");
+    failures += require(program.code[6].opcode == WAI_OP_NOT, "not opcode expected");
+    failures += require(program.code[8].opcode == WAI_OP_SHR_IMM, "shr immediate opcode expected");
+    wai_program_free(&program);
+
     const char *bad_source = "wat r0, 1\n";
     result = wai_assemble_source(bad_source, &program);
     failures += require(result.error == WAI_ERR_PARSE, "assembler should reject unknown instruction");

@@ -30,6 +30,20 @@ BITS 64
 %define WAI_OP_CMP_REG 25
 %define WAI_OP_JE 26
 %define WAI_OP_JNE 27
+%define WAI_OP_NOP 28
+%define WAI_OP_MOD_IMM 29
+%define WAI_OP_MOD_REG 30
+%define WAI_OP_AND_IMM 31
+%define WAI_OP_AND_REG 32
+%define WAI_OP_OR_IMM 33
+%define WAI_OP_OR_REG 34
+%define WAI_OP_XOR_IMM 35
+%define WAI_OP_XOR_REG 36
+%define WAI_OP_NOT 37
+%define WAI_OP_SHL_IMM 38
+%define WAI_OP_SHL_REG 39
+%define WAI_OP_SHR_IMM 40
+%define WAI_OP_SHR_REG 41
 
 %define WAI_OK 0
 %define WAI_ERR_BAD_OPCODE 4
@@ -40,6 +54,7 @@ BITS 64
 %define WAI_ERR_MEMORY_OOB 10
 %define WAI_ERR_STACK_OVERFLOW 11
 %define WAI_ERR_STACK_UNDERFLOW 12
+%define WAI_ERR_BAD_SHIFT 13
 
 %define VM_REGS 0
 %define VM_IP 64
@@ -148,6 +163,34 @@ wai_vm_exec_asm:
     je .op_je
     cmp eax, WAI_OP_JNE
     je .op_jne
+    cmp eax, WAI_OP_NOP
+    je .op_nop
+    cmp eax, WAI_OP_MOD_IMM
+    je .op_mod_imm
+    cmp eax, WAI_OP_MOD_REG
+    je .op_mod_reg
+    cmp eax, WAI_OP_AND_IMM
+    je .op_and_imm
+    cmp eax, WAI_OP_AND_REG
+    je .op_and_reg
+    cmp eax, WAI_OP_OR_IMM
+    je .op_or_imm
+    cmp eax, WAI_OP_OR_REG
+    je .op_or_reg
+    cmp eax, WAI_OP_XOR_IMM
+    je .op_xor_imm
+    cmp eax, WAI_OP_XOR_REG
+    je .op_xor_reg
+    cmp eax, WAI_OP_NOT
+    je .op_not
+    cmp eax, WAI_OP_SHL_IMM
+    je .op_shl_imm
+    cmp eax, WAI_OP_SHL_REG
+    je .op_shl_reg
+    cmp eax, WAI_OP_SHR_IMM
+    je .op_shr_imm
+    cmp eax, WAI_OP_SHR_REG
+    je .op_shr_reg
 
     jmp .err_bad_opcode
 
@@ -196,6 +239,13 @@ wai_vm_exec_asm:
     js .err_memory_oob
     cmp rbx, WAI_MEMORY_SIZE - WAI_VALUE_SIZE
     ja .err_memory_oob
+    ret
+
+.check_shift_rbx:
+    test rbx, rbx
+    js .err_bad_shift
+    cmp rbx, 63
+    ja .err_bad_shift
     ret
 
 .push_rax:
@@ -321,6 +371,35 @@ wai_vm_exec_asm:
     cqo
     idiv rbx
     mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_mod_imm:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rbx, [r13 + INS_IMM]
+    test rbx, rbx
+    je .err_div_zero
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    cqo
+    idiv rbx
+    mov [r12 + VM_REGS + r14 * 8], rdx
+    mov rax, rdx
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_mod_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov rbx, [r12 + VM_REGS + rax * 8]
+    test rbx, rbx
+    je .err_div_zero
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    cqo
+    idiv rbx
+    mov [r12 + VM_REGS + r14 * 8], rdx
+    mov rax, rdx
     call .set_zf_from_rax
     jmp .loop
 
@@ -457,6 +536,128 @@ wai_vm_exec_asm:
     mov [r12 + VM_IP], rax
     jmp .loop
 
+.op_nop:
+    jmp .loop
+
+.op_and_imm:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    and rax, [r13 + INS_IMM]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_and_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov r15, rax
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    and rax, [r12 + VM_REGS + r15 * 8]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_or_imm:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    or rax, [r13 + INS_IMM]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_or_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov r15, rax
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    or rax, [r12 + VM_REGS + r15 * 8]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_xor_imm:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    xor rax, [r13 + INS_IMM]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_xor_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov r15, rax
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    xor rax, [r12 + VM_REGS + r15 * 8]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_not:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    not rax
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_shl_imm:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rbx, [r13 + INS_IMM]
+    call .check_shift_rbx
+    mov cl, bl
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    shl rax, cl
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_shl_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov rbx, [r12 + VM_REGS + rax * 8]
+    call .check_shift_rbx
+    mov cl, bl
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    shl rax, cl
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_shr_imm:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rbx, [r13 + INS_IMM]
+    call .check_shift_rbx
+    mov cl, bl
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    shr rax, cl
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_shr_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov rbx, [r12 + VM_REGS + rax * 8]
+    call .check_shift_rbx
+    mov cl, bl
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    shr rax, cl
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
 .err_bad_opcode:
     mov dword [r12 + VM_ERROR], WAI_ERR_BAD_OPCODE
     jmp .error_return
@@ -485,6 +686,10 @@ wai_vm_exec_asm:
 .err_stack_underflow:
     add rsp, 8                  ; discard helper return address
     mov dword [r12 + VM_ERROR], WAI_ERR_STACK_UNDERFLOW
+    jmp .error_return
+.err_bad_shift:
+    add rsp, 8                  ; discard helper return address
+    mov dword [r12 + VM_ERROR], WAI_ERR_BAD_SHIFT
     jmp .error_return
 
 .ok_return:

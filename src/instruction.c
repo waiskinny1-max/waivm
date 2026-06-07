@@ -29,6 +29,20 @@ const char *wai_opcode_name(uint8_t opcode) {
         case WAI_OP_CMP_REG: return "cmp.reg";
         case WAI_OP_JE: return "je";
         case WAI_OP_JNE: return "jne";
+        case WAI_OP_NOP: return "nop";
+        case WAI_OP_MOD_IMM: return "mod.imm";
+        case WAI_OP_MOD_REG: return "mod.reg";
+        case WAI_OP_AND_IMM: return "and.imm";
+        case WAI_OP_AND_REG: return "and.reg";
+        case WAI_OP_OR_IMM: return "or.imm";
+        case WAI_OP_OR_REG: return "or.reg";
+        case WAI_OP_XOR_IMM: return "xor.imm";
+        case WAI_OP_XOR_REG: return "xor.reg";
+        case WAI_OP_NOT: return "not";
+        case WAI_OP_SHL_IMM: return "shl.imm";
+        case WAI_OP_SHL_REG: return "shl.reg";
+        case WAI_OP_SHR_IMM: return "shr.imm";
+        case WAI_OP_SHR_REG: return "shr.reg";
         case WAI_OP_INVALID:
         default: return "invalid";
     }

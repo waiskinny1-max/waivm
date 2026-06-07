@@ -288,6 +288,18 @@ static wai_error_code parse_two_operand_alu(const char *mnemonic, char **tokens,
         *out = make_instr(rhs_is_reg ? WAI_OP_MUL_REG : WAI_OP_MUL_IMM);
     } else if (strcmp(mnemonic, "div") == 0) {
         *out = make_instr(rhs_is_reg ? WAI_OP_DIV_REG : WAI_OP_DIV_IMM);
+    } else if (strcmp(mnemonic, "mod") == 0) {
+        *out = make_instr(rhs_is_reg ? WAI_OP_MOD_REG : WAI_OP_MOD_IMM);
+    } else if (strcmp(mnemonic, "and") == 0) {
+        *out = make_instr(rhs_is_reg ? WAI_OP_AND_REG : WAI_OP_AND_IMM);
+    } else if (strcmp(mnemonic, "or") == 0) {
+        *out = make_instr(rhs_is_reg ? WAI_OP_OR_REG : WAI_OP_OR_IMM);
+    } else if (strcmp(mnemonic, "xor") == 0) {
+        *out = make_instr(rhs_is_reg ? WAI_OP_XOR_REG : WAI_OP_XOR_IMM);
+    } else if (strcmp(mnemonic, "shl") == 0) {
+        *out = make_instr(rhs_is_reg ? WAI_OP_SHL_REG : WAI_OP_SHL_IMM);
+    } else if (strcmp(mnemonic, "shr") == 0) {
+        *out = make_instr(rhs_is_reg ? WAI_OP_SHR_REG : WAI_OP_SHR_IMM);
     } else if (strcmp(mnemonic, "cmp") == 0) {
         *out = make_instr(rhs_is_reg ? WAI_OP_CMP_REG : WAI_OP_CMP_IMM);
     } else {
@@ -448,7 +460,10 @@ wai_assembler_result wai_assemble_source(const char *source, wai_program *out_pr
 
         if (strcmp(mnemonic, "mov") == 0 || strcmp(mnemonic, "add") == 0 ||
             strcmp(mnemonic, "sub") == 0 || strcmp(mnemonic, "mul") == 0 ||
-            strcmp(mnemonic, "div") == 0 || strcmp(mnemonic, "cmp") == 0) {
+            strcmp(mnemonic, "div") == 0 || strcmp(mnemonic, "mod") == 0 ||
+            strcmp(mnemonic, "and") == 0 || strcmp(mnemonic, "or") == 0 ||
+            strcmp(mnemonic, "xor") == 0 || strcmp(mnemonic, "shl") == 0 ||
+            strcmp(mnemonic, "shr") == 0 || strcmp(mnemonic, "cmp") == 0) {
             status = parse_two_operand_alu(mnemonic, tokens, token_count, &instr);
         } else if (strcmp(mnemonic, "load") == 0) {
             status = parse_load(tokens, token_count, &instr);
@@ -487,6 +502,14 @@ wai_assembler_result wai_assemble_source(const char *source, wai_program *out_pr
             } else {
                 instr = make_instr(WAI_OP_RET);
             }
+        } else if (strcmp(mnemonic, "nop") == 0) {
+            if (token_count != 1) {
+                status = WAI_ERR_PARSE;
+            } else {
+                instr = make_instr(WAI_OP_NOP);
+            }
+        } else if (strcmp(mnemonic, "not") == 0) {
+            status = parse_one_register(WAI_OP_NOT, tokens, token_count, &instr);
         } else if (strcmp(mnemonic, "halt") == 0) {
             if (token_count != 1) {
                 status = WAI_ERR_PARSE;

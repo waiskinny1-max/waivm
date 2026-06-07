@@ -7,6 +7,9 @@ int main(void) {
     const char *source =
         "mov r0, 2\n"
         "add r0, 3\n"
+        "mod r0, 5\n"
+        "xor r0, 7\n"
+        "shl r0, 1\n"
         "store [8], r0\n"
         "load r1, [8]\n"
         "print r1\n"
@@ -39,15 +42,27 @@ int main(void) {
         (void)fprintf(stderr, "missing mov disassembly\n%s\n", buffer);
         return 1;
     }
-    if (strstr(buffer, "0002  store [8], r0") == NULL) {
+    if (strstr(buffer, "0002  mod r0, 5") == NULL) {
+        (void)fprintf(stderr, "missing mod disassembly\n%s\n", buffer);
+        return 1;
+    }
+    if (strstr(buffer, "0003  xor r0, 7") == NULL) {
+        (void)fprintf(stderr, "missing xor disassembly\n%s\n", buffer);
+        return 1;
+    }
+    if (strstr(buffer, "0004  shl r0, 1") == NULL) {
+        (void)fprintf(stderr, "missing shl disassembly\n%s\n", buffer);
+        return 1;
+    }
+    if (strstr(buffer, "0005  store [8], r0") == NULL) {
         (void)fprintf(stderr, "missing store disassembly\n%s\n", buffer);
         return 1;
     }
-    if (strstr(buffer, "0003  load r1, [8]") == NULL) {
+    if (strstr(buffer, "0006  load r1, [8]") == NULL) {
         (void)fprintf(stderr, "missing load disassembly\n%s\n", buffer);
         return 1;
     }
-    if (strstr(buffer, "0004  print r1") == NULL) {
+    if (strstr(buffer, "0007  print r1") == NULL) {
         (void)fprintf(stderr, "missing print disassembly\n%s\n", buffer);
         return 1;
     }

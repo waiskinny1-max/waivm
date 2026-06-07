@@ -113,6 +113,12 @@ static int instruction_registers_valid(const wai_instruction *ins) {
         case WAI_OP_SUB_IMM:
         case WAI_OP_MUL_IMM:
         case WAI_OP_DIV_IMM:
+        case WAI_OP_MOD_IMM:
+        case WAI_OP_AND_IMM:
+        case WAI_OP_OR_IMM:
+        case WAI_OP_XOR_IMM:
+        case WAI_OP_SHL_IMM:
+        case WAI_OP_SHR_IMM:
         case WAI_OP_JZ:
         case WAI_OP_JNZ:
         case WAI_OP_PRINT:
@@ -121,12 +127,19 @@ static int instruction_registers_valid(const wai_instruction *ins) {
         case WAI_OP_PUSH:
         case WAI_OP_POP:
         case WAI_OP_CMP_IMM:
+        case WAI_OP_NOT:
             return wai_register_is_valid(ins->a);
         case WAI_OP_MOV_REG:
         case WAI_OP_ADD_REG:
         case WAI_OP_SUB_REG:
         case WAI_OP_MUL_REG:
         case WAI_OP_DIV_REG:
+        case WAI_OP_MOD_REG:
+        case WAI_OP_AND_REG:
+        case WAI_OP_OR_REG:
+        case WAI_OP_XOR_REG:
+        case WAI_OP_SHL_REG:
+        case WAI_OP_SHR_REG:
         case WAI_OP_LOAD_REG:
         case WAI_OP_STORE_REG:
         case WAI_OP_CMP_REG:
@@ -137,6 +150,7 @@ static int instruction_registers_valid(const wai_instruction *ins) {
         case WAI_OP_JNE:
         case WAI_OP_HALT:
         case WAI_OP_RET:
+        case WAI_OP_NOP:
             return 1;
         case WAI_OP_INVALID:
         default:
@@ -150,6 +164,9 @@ static wai_error_code validate_program(const wai_program *program) {
     }
     for (size_t i = 0; i < program->count; i++) {
         const wai_instruction *ins = &program->code[i];
+        if (ins->c != 0u) {
+            return WAI_ERR_PARSE;
+        }
         if (!opcode_known(ins->opcode)) {
             return WAI_ERR_BAD_OPCODE;
         }
@@ -169,6 +186,11 @@ static wai_error_code validate_program(const wai_program *program) {
              ins->opcode == (uint8_t)WAI_OP_STORE_ABS) &&
             (ins->imm < 0 || (uint64_t)ins->imm > (uint64_t)(WAI_MEMORY_SIZE - sizeof(wai_value)))) {
             return WAI_ERR_MEMORY_OOB;
+        }
+        if ((ins->opcode == (uint8_t)WAI_OP_SHL_IMM ||
+             ins->opcode == (uint8_t)WAI_OP_SHR_IMM) &&
+            (ins->imm < 0 || ins->imm > 63)) {
+            return WAI_ERR_BAD_SHIFT;
         }
     }
     return WAI_OK;

@@ -31,6 +31,32 @@ wai_error_code wai_disassemble_instruction(const wai_instruction *ins, size_t ip
             (void)fprintf(out, "div "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
         case WAI_OP_DIV_REG:
             (void)fprintf(out, "div "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
+        case WAI_OP_MOD_IMM:
+            (void)fprintf(out, "mod "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
+        case WAI_OP_MOD_REG:
+            (void)fprintf(out, "mod "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
+        case WAI_OP_AND_IMM:
+            (void)fprintf(out, "and "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
+        case WAI_OP_AND_REG:
+            (void)fprintf(out, "and "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
+        case WAI_OP_OR_IMM:
+            (void)fprintf(out, "or "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
+        case WAI_OP_OR_REG:
+            (void)fprintf(out, "or "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
+        case WAI_OP_XOR_IMM:
+            (void)fprintf(out, "xor "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
+        case WAI_OP_XOR_REG:
+            (void)fprintf(out, "xor "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
+        case WAI_OP_NOT:
+            (void)fprintf(out, "not "); print_reg(out, ins->a); break;
+        case WAI_OP_SHL_IMM:
+            (void)fprintf(out, "shl "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
+        case WAI_OP_SHL_REG:
+            (void)fprintf(out, "shl "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
+        case WAI_OP_SHR_IMM:
+            (void)fprintf(out, "shr "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
+        case WAI_OP_SHR_REG:
+            (void)fprintf(out, "shr "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
         case WAI_OP_JMP:
             (void)fprintf(out, "jmp %lld", (long long)ins->imm); break;
         case WAI_OP_JZ:
@@ -57,6 +83,8 @@ wai_error_code wai_disassemble_instruction(const wai_instruction *ins, size_t ip
             (void)fprintf(out, "call %lld", (long long)ins->imm); break;
         case WAI_OP_RET:
             (void)fprintf(out, "ret"); break;
+        case WAI_OP_NOP:
+            (void)fprintf(out, "nop"); break;
         case WAI_OP_CMP_IMM:
             (void)fprintf(out, "cmp "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
         case WAI_OP_CMP_REG:

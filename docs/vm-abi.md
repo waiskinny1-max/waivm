@@ -1,50 +1,52 @@
 # VM ABI
 
-`asm/vm_linux_x86_64.asm` reads the C `wai_vm` layout directly. The ABI offsets are guarded by `_Static_assert` in `src/vm.c`.
+The NASM runtime and C code share the `wai_vm` and `wai_instruction` layouts.
 
-## Function Boundary
+Target ABI: System V x86-64 on Linux.
+
+Entry point:
 
 ```c
 int wai_vm_exec_asm(wai_vm *vm);
 ```
 
-System V AMD64 ABI:
+Return value:
 
-- `rdi` receives `wai_vm *`;
-- return value is placed in `eax`;
-- callee preserves non-volatile registers.
+- `0`: success;
+- nonzero: runtime error, with `vm->error` set.
 
-## `wai_vm` Offsets
+## VM Layout
 
-| Field | Offset |
-|---|---:|
-| `regs` | 0 |
-| `ip` | 64 |
-| `zf` | 72 |
-| `halted` | 73 |
-| `code` | 80 |
-| `code_count` | 88 |
-| `error` | 96 |
-| `memory` | 128 |
-| `sp` | 65664 |
+The assembly runtime assumes the field order defined in `include/wai/vm.h`:
 
-The assembly runtime does not access `print_stream`, `last_print`, or `print_count` directly. It calls `wai_vm_emit_print(vm, value)`.
+| Field | Purpose |
+|---|---|
+| `regs[8]` | signed 64-bit general-purpose VM registers |
+| `ip` | instruction pointer measured in instruction indexes |
+| `zf` | zero flag |
+| `halted` | halt state |
+| `code` | pointer to packed instruction array |
+| `code_count` | instruction count |
+| `error` | runtime error code |
+| `print_stream` | C-managed stream for print hook |
+| `last_print` | last printed value, used by tests |
+| `print_count` | number of emitted print values |
+| `memory[65536]` | byte-addressed VM memory |
+| `sp` | stack pointer inside VM memory |
 
 ## Instruction Layout
 
-Each instruction is 12 bytes:
+The instruction struct is packed and asserted to be exactly 12 bytes.
 
-| Field | Offset |
+| Field | Size |
 |---|---:|
-| `opcode` | 0 |
-| `a` | 1 |
-| `b` | 2 |
-| `c` | 3 |
-| `imm` | 4 |
+| `opcode` | 1 byte |
+| `a` | 1 byte |
+| `b` | 1 byte |
+| `c` | 1 byte |
+| `imm` | 8 bytes |
 
-The instruction struct is packed in C and asserted to be exactly 12 bytes.
-
-## Stack Layout
+## Stack Convention
 
 `sp` starts at `65536`. Stack operations store 64-bit values in VM memory and move `sp` by 8 bytes:
 
@@ -52,3 +54,9 @@ The instruction struct is packed in C and asserted to be exactly 12 bytes.
 - `pop`: load value at `memory[sp]`, then `sp += 8`.
 
 `call` pushes the return instruction index and jumps to an absolute instruction index. `ret` pops the return instruction index and jumps to it.
+
+There is no frame pointer or local-variable convention yet.
+
+## Shift Semantics
+
+`shl` and `shr` accept shift counts from `0` through `63`. `shr` is logical and treats the register value as an unsigned 64-bit bit pattern before storing the result back as a signed 64-bit VM value.

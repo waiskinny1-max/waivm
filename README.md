@@ -7,11 +7,11 @@ Register-based bytecode VM with a handwritten x86-64 assembly execution core.
 - x86-64 NASM VM runtime for normal execution
 - C17 assembler and disassembler
 - custom `.waibc` bytecode format
-- interactive debugger with stepping, register inspection, memory dumps, stack dumps, disassembly view, and breakpoints
-- 8 signed 64-bit general-purpose registers
+- interactive debugger with stepping, breakpoints, register dumps, memory dumps, stack dumps, and disassembly view
+- 8 signed 64-bit general-purpose VM registers
 - 64 KiB bounds-checked linear memory
-- stack operations and `call`/`ret`
-- fixed-width 12-byte instruction encoding
+- VM stack with `push`, `pop`, `call`, and `ret`
+- arithmetic, modulo, branch, compare, and bitwise instructions
 - examples, tests, and GitHub Actions CI
 
 ## Quickstart
@@ -31,31 +31,35 @@ Expected output:
 ## Example Program
 
 ```asm
-; call/ret using the VM stack
+; factorial of 5
 
-mov r0, 21
-call double
-print r0
+mov r0, 5      ; counter
+mov r1, 1      ; result
+
+loop:
+  mul r1, r0
+  sub r0, 1
+  jnz r0, loop
+
+print r1
 halt
-
-double:
-  mul r0, 2
-  ret
 ```
 
+Run it:
+
 ```sh
-./build/waivm run examples/call.wai
+./build/waivm run examples/factorial.wai
 ```
 
 Expected output:
 
 ```text
-42
+120
 ```
 
 ## CLI
 
-```sh
+```text
 waivm run <file.wai|file.waibc>
 waivm asm <input.wai> -o <output.waibc>
 waivm dis <file.wai|file.waibc>
@@ -64,35 +68,42 @@ waivm info <file.waibc>
 waivm help
 ```
 
-Example bytecode workflow:
+Examples:
 
 ```sh
-./build/waivm asm examples/memory.wai -o memory.waibc
-./build/waivm info memory.waibc
-./build/waivm dis memory.waibc
-./build/waivm run memory.waibc
+./build/waivm asm examples/bitwise.wai -o bitwise.waibc
+./build/waivm info bitwise.waibc
+./build/waivm dis bitwise.waibc
+./build/waivm run bitwise.waibc
 ```
 
 ## Instruction Set
 
 | Instruction | Meaning |
 |---|---|
-| `mov rX, IMM` | store immediate in register |
-| `mov rX, rY` | copy register |
+| `nop` | no operation |
+| `mov rX, IMM/rY` | write immediate or register value |
 | `add rX, IMM/rY` | add into register |
 | `sub rX, IMM/rY` | subtract from register |
 | `mul rX, IMM/rY` | multiply register |
 | `div rX, IMM/rY` | signed integer division |
-| `load rX, [ADDR/rY]` | load signed 64-bit value from VM memory |
-| `store [ADDR/rY], rX` | store signed 64-bit value into VM memory |
-| `push rX` | push register value onto VM stack |
-| `pop rX` | pop VM stack value into register |
+| `mod rX, IMM/rY` | signed integer remainder |
+| `and rX, IMM/rY` | bitwise AND |
+| `or rX, IMM/rY` | bitwise OR |
+| `xor rX, IMM/rY` | bitwise XOR |
+| `not rX` | bitwise NOT |
+| `shl rX, IMM/rY` | logical left shift, shift count `0..63` |
+| `shr rX, IMM/rY` | logical right shift, shift count `0..63` |
 | `cmp rX, IMM/rY` | compare and update zero flag |
 | `jmp label` | unconditional jump |
-| `jz rX, label` | jump when register is zero |
-| `jnz rX, label` | jump when register is not zero |
-| `je label` | jump when zero flag is set |
-| `jne label` | jump when zero flag is clear |
+| `jz rX, label` | jump if register is zero |
+| `jnz rX, label` | jump if register is not zero |
+| `je label` | jump if zero flag is set |
+| `jne label` | jump if zero flag is clear |
+| `load rX, [addr/rY]` | load signed 64-bit value from memory |
+| `store [addr/rY], rX` | store signed 64-bit value to memory |
+| `push rX` | push register value on VM stack |
+| `pop rX` | pop VM stack value into register |
 | `call label` | push return address and jump |
 | `ret` | pop return address and jump |
 | `print rX` | print register value |
@@ -102,22 +113,15 @@ Registers are signed 64-bit values. Memory is 64 KiB, byte-addressed, and bounds
 
 ## Bytecode Format
 
-`.waibc` files use a 32-byte little-endian header followed by fixed-width 12-byte instructions.
+`.waibc` files use a fixed 32-byte little-endian header followed by fixed-width 12-byte instructions.
 
-Header:
+Header magic:
 
-| Offset | Size | Field |
-|---:|---:|---|
-| 0 | 4 | magic bytes: `WAI0` |
-| 4 | 2 | version: `3` |
-| 6 | 2 | header size: `32` |
-| 8 | 2 | instruction size: `12` |
-| 10 | 2 | register count: `8` |
-| 12 | 4 | flags: `0` |
-| 16 | 8 | code instruction count |
-| 24 | 8 | data size: `0` |
+```text
+WAI0
+```
 
-Instruction:
+Instruction encoding:
 
 | Offset | Size | Field |
 |---:|---:|---|
@@ -125,20 +129,23 @@ Instruction:
 | 1 | 1 | operand `a` |
 | 2 | 1 | operand `b` |
 | 3 | 1 | reserved operand `c` |
-| 4 | 8 | signed immediate / address / jump target |
+| 4 | 8 | signed immediate / target |
+
+Bytecode version: `4`.
+
+See [`docs/bytecode-format.md`](docs/bytecode-format.md).
 
 ## Architecture
-
-The runtime boundary is deliberate:
 
 - C owns CLI parsing, source loading, bytecode loading/writing, validation, assembler, disassembler, debugger UX, and tests.
 - NASM owns the normal bytecode dispatch loop and executes VM instructions directly against the C-defined VM state.
 - The debugger uses a C stepping engine so it can stop between instructions, inspect state, and resume predictably.
-- C exposes a small print hook used by both execution paths.
 
 See [`docs/architecture.md`](docs/architecture.md) and [`docs/vm-abi.md`](docs/vm-abi.md).
 
 ## Debugger
+
+Start the debugger:
 
 ```sh
 ./build/waivm debug examples/call.wai
@@ -151,14 +158,16 @@ help
 regs
 ip
 dis
-mem 0 64
-stack 8
+mem <addr> [bytes]
+stack [count]
 step
-break 5
 continue
-clear 5
+break <ip>
+clear <ip>
 quit
 ```
+
+See [`docs/debugger.md`](docs/debugger.md).
 
 ## Build
 
@@ -178,10 +187,10 @@ cmake --build build
 ## Tests
 
 ```sh
-ctest --test-dir build --output-on-failure
+ctest --test-dir build
 ```
 
-Tests cover assembler parsing, VM execution, bytecode write/read, disassembly, debugger command flow, stack/call behavior, memory behavior, and basic error handling.
+Tests cover assembler parsing, VM execution, bytecode write/read, disassembly, debugger command flow, stack/call behavior, memory behavior, bitwise/modulo behavior, and basic error handling.
 
 ## Roadmap
 
@@ -194,27 +203,24 @@ waivm is experimental but functional.
 Current:
 
 - register VM
-- arithmetic and branch instructions
-- bounds-checked linear memory
-- stack operations
-- `call`/`ret`
-- handwritten NASM execution loop
-- C17 source assembler
-- `.waibc` bytecode writer/reader
-- bytecode metadata `info` command
+- arithmetic, modulo, bitwise, branch, compare, memory, stack, and call instructions
+- C17 assembler
+- `.waibc` bytecode loader/writer
 - disassembler
 - interactive debugger
+- bytecode metadata `info` command
+- handwritten NASM execution loop for Linux x86-64
 - example programs
 - test harness and CI configuration
 
 Not implemented yet:
 
-- stack frames or local variable ABI
 - heap allocation
 - strings
-- floating point values
+- function stack frames or calling convention beyond raw `call`/`ret`
 - JIT compilation
 - Windows runtime
+- source-level debugger symbols
 
 ## License
 

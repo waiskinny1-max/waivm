@@ -97,6 +97,26 @@ int main(void) {
         "halt\n",
         1);
 
+
+    failures += run_source_last_print(
+        "mov r0, 6\n"
+        "mov r1, 3\n"
+        "and r0, r1\n"
+        "shl r0, 4\n"
+        "xor r0, 7\n"
+        "mod r0, 10\n"
+        "print r0\n"
+        "halt\n",
+        9);
+
+    failures += run_source_last_print(
+        "mov r0, 8\n"
+        "shr r0, 1\n"
+        "or r0, 1\n"
+        "print r0\n"
+        "halt\n",
+        5);
+
     wai_instruction bad_div[] = {
         {.opcode = WAI_OP_MOV_IMM, .a = 0, .b = 0, .c = 0, .imm = 7},
         {.opcode = WAI_OP_DIV_IMM, .a = 0, .b = 0, .c = 0, .imm = 0},
@@ -108,6 +128,19 @@ int main(void) {
     wai_error_code error = wai_vm_execute(&vm);
     if (error != WAI_ERR_DIV_ZERO) {
         (void)fprintf(stderr, "expected division by zero error\n");
+        failures += 1;
+    }
+
+    wai_instruction bad_shift[] = {
+        {.opcode = WAI_OP_MOV_IMM, .a = 0, .b = 0, .c = 0, .imm = 7},
+        {.opcode = WAI_OP_SHL_IMM, .a = 0, .b = 0, .c = 0, .imm = 64},
+        {.opcode = WAI_OP_HALT, .a = 0, .b = 0, .c = 0, .imm = 0},
+    };
+    wai_vm_init(&vm, bad_shift, 3u);
+    wai_vm_set_print_stream(&vm, NULL);
+    error = wai_vm_execute(&vm);
+    if (error != WAI_ERR_BAD_SHIFT) {
+        (void)fprintf(stderr, "expected bad shift error, got %s\n", wai_error_string(error));
         failures += 1;
     }
 

@@ -38,10 +38,24 @@ typedef enum wai_opcode {
     WAI_OP_CMP_IMM = 24,
     WAI_OP_CMP_REG = 25,
     WAI_OP_JE = 26,
-    WAI_OP_JNE = 27
+    WAI_OP_JNE = 27,
+    WAI_OP_NOP = 28,
+    WAI_OP_MOD_IMM = 29,
+    WAI_OP_MOD_REG = 30,
+    WAI_OP_AND_IMM = 31,
+    WAI_OP_AND_REG = 32,
+    WAI_OP_OR_IMM = 33,
+    WAI_OP_OR_REG = 34,
+    WAI_OP_XOR_IMM = 35,
+    WAI_OP_XOR_REG = 36,
+    WAI_OP_NOT = 37,
+    WAI_OP_SHL_IMM = 38,
+    WAI_OP_SHL_REG = 39,
+    WAI_OP_SHR_IMM = 40,
+    WAI_OP_SHR_REG = 41
 } wai_opcode;
 
-#define WAI_OPCODE_MAX WAI_OP_JNE
+#define WAI_OPCODE_MAX WAI_OP_SHR_REG
 
 #if defined(_MSC_VER)
 #pragma pack(push, 1)

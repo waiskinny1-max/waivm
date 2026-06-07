@@ -1,31 +1,21 @@
 # Bytecode Format
 
-waivm bytecode files use the `.waibc` extension.
+`.waibc` is waivm's persistent bytecode format.
+
+v4 deliberately uses fixed-width records. This keeps the NASM dispatch loop simple and makes corruption handling easier.
 
 ## Endianness
 
-All multi-byte numeric fields are little-endian.
-
-## File Layout
-
-```text
-+----------------------+ 0
-| 32-byte header       |
-+----------------------+ 32
-| instruction 0        | 12 bytes
-+----------------------+
-| instruction 1        | 12 bytes
-+----------------------+
-| ...                  |
-+----------------------+
-```
+All multi-byte integers are little-endian.
 
 ## Header
 
-| Offset | Size | Field | Value in v3 |
+Header size: 32 bytes.
+
+| Offset | Size | Field | Value in v4 |
 |---:|---:|---|---|
 | 0 | 4 | magic | `WAI0` |
-| 4 | 2 | version | `3` |
+| 4 | 2 | version | `4` |
 | 6 | 2 | header size | `32` |
 | 8 | 2 | instruction size | `12` |
 | 10 | 2 | register count | `8` |
@@ -33,65 +23,62 @@ All multi-byte numeric fields are little-endian.
 | 16 | 8 | code count | number of instructions |
 | 24 | 8 | data size | `0` |
 
-`data_size` remains zero in v3. The 64 KiB VM memory is runtime state, not serialized static data.
+`data_size` remains zero in v4. The 64 KiB VM memory is runtime state, not serialized static data.
 
-## Instruction Encoding
+## Instruction Record
 
-Each instruction is exactly 12 bytes:
+Instruction size: 12 bytes.
 
 | Offset | Size | Field | Meaning |
 |---:|---:|---|---|
-| 0 | 1 | opcode | instruction selector |
-| 1 | 1 | `a` | destination/source/condition register |
-| 2 | 1 | `b` | source/address register |
-| 3 | 1 | `c` | reserved, currently zero |
-| 4 | 8 | `imm` | signed immediate, absolute memory address, or absolute instruction index |
+| 0 | 1 | opcode | numeric opcode |
+| 1 | 1 | a | first register operand |
+| 2 | 1 | b | second register operand |
+| 3 | 1 | c | reserved, currently zero |
+| 4 | 8 | imm | signed immediate, memory address, or jump target |
 
-## Opcode Map
+The C representation is packed:
 
-| Opcode | Name |
-|---:|---|
-| 1 | `MOV_IMM` |
-| 2 | `MOV_REG` |
-| 3 | `ADD_IMM` |
-| 4 | `ADD_REG` |
-| 5 | `SUB_IMM` |
-| 6 | `SUB_REG` |
-| 7 | `MUL_IMM` |
-| 8 | `MUL_REG` |
-| 9 | `DIV_IMM` |
-| 10 | `DIV_REG` |
-| 11 | `JMP` |
-| 12 | `JZ` |
-| 13 | `JNZ` |
-| 14 | `PRINT` |
-| 15 | `HALT` |
-| 16 | `LOAD_ABS` |
-| 17 | `LOAD_REG` |
-| 18 | `STORE_ABS` |
-| 19 | `STORE_REG` |
-| 20 | `PUSH` |
-| 21 | `POP` |
-| 22 | `CALL` |
-| 23 | `RET` |
-| 24 | `CMP_IMM` |
-| 25 | `CMP_REG` |
-| 26 | `JE` |
-| 27 | `JNE` |
+```c
+typedef struct wai_instruction {
+    uint8_t opcode;
+    uint8_t a;
+    uint8_t b;
+    uint8_t c;
+    int64_t imm;
+} wai_instruction;
+```
+
+## Opcode Versioning
+
+v4 extends v3 with:
+
+- `NOP`
+- `MOD_IMM`, `MOD_REG`
+- `AND_IMM`, `AND_REG`
+- `OR_IMM`, `OR_REG`
+- `XOR_IMM`, `XOR_REG`
+- `NOT`
+- `SHL_IMM`, `SHL_REG`
+- `SHR_IMM`, `SHR_REG`
+
+Because the bytecode version is exact-match validated, older `.waibc` files must be reassembled when the bytecode version changes.
 
 ## Validation
 
 The loader rejects:
 
-- bad magic bytes;
-- unsupported version;
+- bad magic;
+- unsupported bytecode version;
 - wrong header size;
 - wrong instruction size;
 - wrong register count;
-- non-zero data size;
-- trailing bytes after the encoded program;
-- invalid opcodes;
+- nonzero data size;
+- trailing bytes;
+- unknown opcodes;
 - invalid register operands;
-- jump or call targets outside the program.
+- jump targets outside the code range;
+- absolute memory addresses outside the valid 64-bit access range;
+- immediate shift counts outside `0..63`.
 
-Memory bounds are checked at runtime because register-addressed memory operands cannot be fully validated at load time.
+Register-addressed memory operands and register-based shift counts are checked at runtime.

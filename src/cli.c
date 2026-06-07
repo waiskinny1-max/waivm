@@ -13,7 +13,7 @@ typedef enum cli_status {
 
 static void print_usage(FILE *out) {
     (void)fprintf(out,
-        "waivm v3\n"
+        "waivm v4\n"
         "\n"
         "Usage:\n"
         "  waivm run <file.wai|file.waibc>\n"

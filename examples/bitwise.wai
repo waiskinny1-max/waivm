@@ -1,0 +1,10 @@
+; bitwise and shift operations
+
+mov r0, 6       ; 0b0110
+mov r1, 3       ; 0b0011
+and r0, r1      ; 0b0010 = 2
+shl r0, 4       ; 32
+xor r0, 7       ; 39
+mod r0, 10      ; 9
+print r0
+halt

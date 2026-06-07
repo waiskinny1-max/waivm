@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
-project(waivm VERSION 3.0.0 LANGUAGES C ASM_NASM)
+project(waivm VERSION 4.0.0 LANGUAGES C ASM_NASM)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-    message(FATAL_ERROR "waivm v3 requires x86-64")
+    message(FATAL_ERROR "waivm v4 requires x86-64")
 endif()
 
 if(NOT UNIX OR APPLE)
-    message(FATAL_ERROR "waivm v3 currently targets Linux x86-64")
+    message(FATAL_ERROR "waivm v4 currently targets Linux x86-64")
 endif()
 
 set(CMAKE_ASM_NASM_OBJECT_FORMAT elf64)

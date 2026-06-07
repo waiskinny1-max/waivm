@@ -15,6 +15,7 @@ const char *wai_error_string(wai_error_code code) {
         case WAI_ERR_MEMORY_OOB: return "memory access out of bounds";
         case WAI_ERR_STACK_OVERFLOW: return "stack overflow";
         case WAI_ERR_STACK_UNDERFLOW: return "stack underflow";
+        case WAI_ERR_BAD_SHIFT: return "bad shift count";
         default: return "unknown error";
     }
 }
