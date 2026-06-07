@@ -1,0 +1,10 @@
+; branch example
+
+mov r0, 0
+mov r1, 42
+jz r0, zero
+mov r1, 1
+
+zero:
+  print r1
+  halt

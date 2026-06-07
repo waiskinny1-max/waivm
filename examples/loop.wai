@@ -1,0 +1,8 @@
+; simple countdown
+
+mov r0, 3
+loop:
+  print r0
+  sub r0, 1
+  jnz r0, loop
+halt

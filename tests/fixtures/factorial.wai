@@ -1,0 +1,12 @@
+; factorial of 5
+
+mov r0, 5      ; counter
+mov r1, 1      ; result
+
+loop:
+  mul r1, r0
+  sub r0, 1
+  jnz r0, loop
+
+print r1
+halt

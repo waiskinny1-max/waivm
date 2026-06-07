@@ -1,0 +1,12 @@
+; sum 10 + 9 + ... + 1
+
+mov r0, 10
+mov r1, 0
+
+loop:
+  add r1, r0
+  sub r0, 1
+  jnz r0, loop
+
+print r1
+halt
