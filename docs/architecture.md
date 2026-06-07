@@ -13,6 +13,7 @@ waivm is split into a small assembly execution core and C17 tooling.
 | Disassembler | render bytecode back into readable assembly-like text |
 | Debugger | interactive stepping, breakpoints, registers, memory, stack |
 | CLI | command routing and file type detection |
+| Rust terminal UI | optional terminal-native app that drives the public `waivm` CLI |
 
 The normal `run` path uses `wai_vm_exec_asm`. The debugger uses `wai_vm_step`, because debugger control requires stopping between instructions and inspecting state.
 
@@ -57,3 +58,23 @@ Important error cases:
 - memory access out of bounds;
 - stack overflow/underflow;
 - invalid shift count.
+
+## Verification and Trace Layer
+
+v5 adds a separate verification and trace layer. The verifier checks structural properties before execution, including opcode validity, register bounds, reserved fields, static jump targets, absolute memory bounds, and immediate shift counts.
+
+Trace mode intentionally uses the C stepping engine instead of the NASM run loop. That keeps the normal runtime path assembly-backed while allowing trace output to inspect state after every instruction.
+
+
+## Terminal UI Layer
+
+v6 adds `waivm-tui`, a Rust terminal application under `tui/`. It is deliberately separate from the C/NASM core. It does not link against the VM library and does not reimplement execution. Instead, it invokes the public `waivm` commands (`run`, `trace`, `verify`, `dis`, `info`, and `debug`).
+
+This keeps the architecture clean:
+
+- NASM remains the normal execution core;
+- C remains responsible for bytecode, assembly, verification, tracing, and debugging;
+- Rust is used only for terminal UX;
+- the TUI dogfoods the same CLI a user would run manually.
+
+The TUI is optional and is not part of the default CMake build unless `-DWAI_BUILD_TUI=ON` is requested.

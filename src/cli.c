@@ -3,6 +3,8 @@
 #include "wai/debugger.h"
 #include "wai/disassembler.h"
 #include "wai/vm.h"
+#include "wai/trace.h"
+#include "wai/verifier.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -13,13 +15,15 @@ typedef enum cli_status {
 
 static void print_usage(FILE *out) {
     (void)fprintf(out,
-        "waivm v4\n"
+        "waivm v6\n"
         "\n"
         "Usage:\n"
         "  waivm run <file.wai|file.waibc>\n"
         "  waivm asm <input.wai> -o <output.waibc>\n"
         "  waivm dis <file.wai|file.waibc>\n"
         "  waivm debug <file.wai|file.waibc>\n"
+        "  waivm trace <file.wai|file.waibc>\n"
+        "  waivm verify <file.wai|file.waibc>\n"
         "  waivm info <file.waibc>\n"
         "  waivm help\n");
 }
@@ -125,6 +129,44 @@ static int command_debug(const char *path) {
     return CLI_OK;
 }
 
+
+static int command_verify(const char *path) {
+    wai_program program;
+    wai_bytecode_info info;
+    if (load_program_auto(path, &program, &info) != CLI_OK) {
+        return CLI_ERR;
+    }
+
+    wai_verify_report report;
+    wai_error_code status = wai_verify_program(&program, &report);
+    wai_program_free(&program);
+    if (status != WAI_OK) {
+        (void)fprintf(stderr, "verify error at ip=%llu: %s (%s)\n",
+                      (unsigned long long)report.ip,
+                      wai_error_string(status),
+                      report.message);
+        return CLI_ERR;
+    }
+    (void)printf("verify: ok - %s\n", report.message);
+    return CLI_OK;
+}
+
+static int command_trace(const char *path) {
+    wai_program program;
+    wai_bytecode_info info;
+    if (load_program_auto(path, &program, &info) != CLI_OK) {
+        return CLI_ERR;
+    }
+
+    wai_error_code status = wai_trace_program(&program, stdout);
+    wai_program_free(&program);
+    if (status != WAI_OK) {
+        (void)fprintf(stderr, "trace error: %s\n", wai_error_string(status));
+        return CLI_ERR;
+    }
+    return CLI_OK;
+}
+
 static int command_info(const char *path) {
     wai_bytecode_info info;
     wai_error_code status = wai_bytecode_read_info(path, &info);
@@ -176,6 +218,23 @@ int wai_cli_main(int argc, char **argv) {
             return CLI_ERR;
         }
         return command_debug(argv[2]);
+    }
+
+
+    if (strcmp(argv[1], "trace") == 0) {
+        if (argc != 3) {
+            (void)fprintf(stderr, "error: trace expects exactly one input file\n");
+            return CLI_ERR;
+        }
+        return command_trace(argv[2]);
+    }
+
+    if (strcmp(argv[1], "verify") == 0) {
+        if (argc != 3) {
+            (void)fprintf(stderr, "error: verify expects exactly one input file\n");
+            return CLI_ERR;
+        }
+        return command_verify(argv[2]);
     }
 
     if (strcmp(argv[1], "info") == 0) {

@@ -8,6 +8,8 @@ Register-based bytecode VM with a handwritten x86-64 assembly execution core.
 - C17 assembler and disassembler
 - custom `.waibc` bytecode format
 - interactive debugger with stepping, breakpoints, register dumps, memory dumps, stack dumps, and disassembly view
+- bytecode verifier and instruction-level trace mode
+- optional Rust terminal UI for a full terminal-native workflow
 - 8 signed 64-bit general-purpose VM registers
 - 64 KiB bounds-checked linear memory
 - VM stack with `push`, `pop`, `call`, and `ret`
@@ -27,6 +29,17 @@ Expected output:
 ```text
 55
 ```
+
+
+## Demo
+
+![waivm run and verify demo](assets/demo-run.png)
+
+![waivm trace demo](assets/demo-trace.png)
+
+Terminal UI preview:
+
+![waivm terminal UI preview](assets/demo-tui.svg)
 
 ## Example Program
 
@@ -64,8 +77,11 @@ waivm run <file.wai|file.waibc>
 waivm asm <input.wai> -o <output.waibc>
 waivm dis <file.wai|file.waibc>
 waivm debug <file.wai|file.waibc>
+waivm trace <file.wai|file.waibc>
+waivm verify <file.wai|file.waibc>
 waivm info <file.waibc>
 waivm help
+waivm-tui --root . --waivm ./build/waivm
 ```
 
 Examples:
@@ -74,6 +90,8 @@ Examples:
 ./build/waivm asm examples/bitwise.wai -o bitwise.waibc
 ./build/waivm info bitwise.waibc
 ./build/waivm dis bitwise.waibc
+./build/waivm verify bitwise.waibc
+./build/waivm trace examples/factorial.wai
 ./build/waivm run bitwise.waibc
 ```
 
@@ -131,9 +149,11 @@ Instruction encoding:
 | 3 | 1 | reserved operand `c` |
 | 4 | 8 | signed immediate / target |
 
-Bytecode version: `4`.
+Bytecode version: `5`.
 
-See [`docs/bytecode-format.md`](docs/bytecode-format.md).
+Project release: `6.0.0`.
+
+See [`docs/bytecode-format.md`](docs/bytecode-format.md) and [`docs/verifier.md`](docs/verifier.md).
 
 ## Architecture
 
@@ -169,6 +189,37 @@ quit
 
 See [`docs/debugger.md`](docs/debugger.md).
 
+## Verifier and Trace Mode
+
+Validate source or bytecode without executing it:
+
+```sh
+./build/waivm verify examples/sum.wai
+```
+
+Trace execution step by step:
+
+```sh
+./build/waivm trace examples/factorial.wai
+```
+
+See [`docs/verifier.md`](docs/verifier.md) and [`docs/trace.md`](docs/trace.md).
+
+## Terminal UI
+
+v6 adds an optional terminal-native Rust application:
+
+```sh
+cargo build --manifest-path tui/Cargo.toml --release
+./tui/target/release/waivm-tui --root . --waivm ./build/waivm
+```
+
+The TUI lets you browse programs, run, trace, verify, disassemble, inspect bytecode metadata, and temporarily jump into the existing interactive debugger.
+
+It deliberately does **not** use React, a browser, or a web UI. It is a terminal application using ANSI/stty terminal control and shells out to the real `waivm` CLI.
+
+See [`docs/terminal-ui.md`](docs/terminal-ui.md) and [`tui/README.md`](tui/README.md).
+
 ## Build
 
 Dependencies:
@@ -178,10 +229,25 @@ Dependencies:
 - NASM
 - Make or Ninja
 - Linux x86-64
+- optional: Rust/Cargo for `waivm-tui`
 
 ```sh
 cmake -S . -B build
 cmake --build build
+```
+
+Optional terminal UI:
+
+```sh
+cargo build --manifest-path tui/Cargo.toml --release
+./tui/target/release/waivm-tui --root . --waivm ./build/waivm
+```
+
+Optional CMake target:
+
+```sh
+cmake -S . -B build -DWAI_BUILD_TUI=ON
+cmake --build build --target waivm_tui
 ```
 
 ## Tests
@@ -190,7 +256,7 @@ cmake --build build
 ctest --test-dir build
 ```
 
-Tests cover assembler parsing, VM execution, bytecode write/read, disassembly, debugger command flow, stack/call behavior, memory behavior, bitwise/modulo behavior, and basic error handling.
+Tests cover assembler parsing, VM execution, bytecode write/read, disassembly, debugger command flow, verifier behavior, trace mode, malformed bytecode rejection, golden example outputs, stack/call behavior, memory behavior, bitwise/modulo behavior, terminal UI cargo checks, and basic error handling.
 
 ## Roadmap
 
@@ -209,6 +275,9 @@ Current:
 - disassembler
 - interactive debugger
 - bytecode metadata `info` command
+- bytecode verifier
+- instruction-level trace mode
+- optional Rust terminal UI
 - handwritten NASM execution loop for Linux x86-64
 - example programs
 - test harness and CI configuration
@@ -220,7 +289,9 @@ Not implemented yet:
 - function stack frames or calling convention beyond raw `call`/`ret`
 - JIT compilation
 - Windows runtime
+- inline source editing in the terminal UI
 - source-level debugger symbols
+- formal control-flow analysis beyond structural verification
 
 ## License
 

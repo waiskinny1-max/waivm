@@ -22,3 +22,25 @@ add_executable(test_debugger test_debugger.c)
 target_link_libraries(test_debugger PRIVATE waicore)
 target_compile_options(test_debugger PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>)
 add_test(NAME debugger COMMAND test_debugger)
+
+
+add_executable(test_verifier test_verifier.c)
+target_link_libraries(test_verifier PRIVATE waicore)
+target_compile_options(test_verifier PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>)
+add_test(NAME verifier COMMAND test_verifier)
+
+add_executable(test_trace test_trace.c)
+target_link_libraries(test_trace PRIVATE waicore)
+target_compile_options(test_trace PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>)
+add_test(NAME trace COMMAND test_trace)
+
+add_executable(test_malformed_bytecode test_malformed_bytecode.c)
+target_link_libraries(test_malformed_bytecode PRIVATE waicore)
+target_compile_options(test_malformed_bytecode PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>)
+add_test(NAME malformed_bytecode COMMAND test_malformed_bytecode)
+
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(
+    NAME golden_examples
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/golden/run_golden.py $<TARGET_FILE:waivm> ${CMAKE_SOURCE_DIR}
+)

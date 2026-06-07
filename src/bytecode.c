@@ -182,6 +182,10 @@ static wai_error_code validate_program(const wai_program *program) {
             (ins->imm < 0 || (uint64_t)ins->imm >= (uint64_t)program->count)) {
             return WAI_ERR_BAD_JUMP;
         }
+        if ((ins->opcode == (uint8_t)WAI_OP_DIV_IMM ||
+             ins->opcode == (uint8_t)WAI_OP_MOD_IMM) && ins->imm == 0) {
+            return WAI_ERR_DIV_ZERO;
+        }
         if ((ins->opcode == (uint8_t)WAI_OP_LOAD_ABS ||
              ins->opcode == (uint8_t)WAI_OP_STORE_ABS) &&
             (ins->imm < 0 || (uint64_t)ins->imm > (uint64_t)(WAI_MEMORY_SIZE - sizeof(wai_value)))) {

@@ -15,7 +15,7 @@ Header size: 32 bytes.
 | Offset | Size | Field | Value in v4 |
 |---:|---:|---|---|
 | 0 | 4 | magic | `WAI0` |
-| 4 | 2 | version | `4` |
+| 4 | 2 | version | `5` |
 | 6 | 2 | header size | `32` |
 | 8 | 2 | instruction size | `12` |
 | 10 | 2 | register count | `8` |

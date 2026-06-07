@@ -1,0 +1,12 @@
+[package]
+name = "waivm-tui"
+version = "6.0.0"
+edition = "2021"
+description = "Terminal-native control surface for waivm"
+license = "MIT"
+repository = "https://github.com/waiskinny1-max/waivm"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
