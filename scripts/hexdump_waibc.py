@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Reserved helper for v0.3 .waibc inspection."""
-import sys
+"""Small inspector for waivm .waibc files."""
+import argparse
 from pathlib import Path
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: hexdump_waibc.py <file>", file=sys.stderr)
-        return 2
-    data = Path(sys.argv[1]).read_bytes()
+    parser = argparse.ArgumentParser(description="dump a .waibc file in hex")
+    parser.add_argument("file")
+    args = parser.parse_args()
+
+    data = Path(args.file).read_bytes()
     for offset in range(0, len(data), 16):
         chunk = data[offset:offset + 16]
-        hex_part = " ".join(f"{b:02x}" for b in chunk)
-        print(f"{offset:08x}  {hex_part}")
+        hexed = " ".join(f"{b:02x}" for b in chunk)
+        ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
+        print(f"{offset:08x}  {hexed:<47}  {ascii_part}")
     return 0
 
 

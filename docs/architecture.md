@@ -1,25 +1,38 @@
 # Architecture
 
-waivm v0.1 is split into a C tooling layer and a NASM execution layer.
+waivm is a small register-based bytecode VM designed to show the boundary between low-level execution and systems tooling.
 
 ## Components
 
-| Component | Responsibility |
-|---|---|
-| `src/cli.c` | command parsing and user-facing errors |
-| `src/assembler.c` | `.wai` parsing, label collection, label resolution |
-| `src/bytecode.c` | in-memory program storage |
-| `src/vm.c` | VM initialization and C/ASM boundary |
-| `asm/vm_linux_x86_64.asm` | bytecode dispatch and instruction execution |
+| Component | Language | Role |
+|---|---|---|
+| NASM runtime | x86-64 assembly | normal VM dispatch loop |
+| VM state | C ABI struct | registers, IP, flags, code pointer, output state |
+| assembler | C17 | parse `.wai` source, resolve labels, emit instructions |
+| bytecode loader/writer | C17 | read and write `.waibc` files |
+| disassembler | C17 | print readable instructions from encoded programs |
+| debugger | C17 | command loop, stepping, register dump, breakpoints |
+| CLI | C17 | user-facing commands |
 
-## Execution model
+## VM State
 
-1. CLI reads a `.wai` source file.
-2. The C assembler emits a `wai_program` containing fixed-width instructions.
-3. `wai_vm_init` binds the instruction array to VM state.
-4. `wai_vm_exec_asm` runs the dispatch loop in NASM.
-5. `print` calls back into `wai_vm_emit_print` so output remains testable.
+The VM has 8 signed 64-bit registers and an instruction pointer. The instruction stream is an array of fixed-width 12-byte instructions.
 
-## Scope boundary
+```text
+r0-r7   signed 64-bit general-purpose registers
+ip      absolute instruction index
+zf      zero flag maintained by arithmetic/move operations
+halted  halt state
+```
 
-Persistent `.waibc` files, the disassembler, and the debugger are later milestones. v0.1 keeps the runtime small enough to audit.
+## Runtime Boundary
+
+Normal execution flows through `wai_vm_execute`, which calls `wai_vm_exec_asm` in `asm/vm_linux_x86_64.asm`.
+
+The C side prepares the program and initializes `wai_vm`. The assembly side reads the VM struct fields directly using ABI offsets checked by `_Static_assert` in `src/vm.c`.
+
+The only C callback used by the assembly runtime is `wai_vm_emit_print`, which centralizes output and lets tests suppress stdout while checking the last printed value.
+
+## Debugger Boundary
+
+The debugger uses `wai_vm_step` in C instead of the assembly loop. This keeps debugger behavior inspectable and avoids mixing interactive control flow into the assembly dispatch loop.

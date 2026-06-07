@@ -12,3 +12,13 @@ add_executable(test_bytecode test_bytecode.c)
 target_link_libraries(test_bytecode PRIVATE waicore)
 target_compile_options(test_bytecode PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>)
 add_test(NAME bytecode COMMAND test_bytecode)
+
+add_executable(test_disassembler test_disassembler.c)
+target_link_libraries(test_disassembler PRIVATE waicore)
+target_compile_options(test_disassembler PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>)
+add_test(NAME disassembler COMMAND test_disassembler)
+
+add_executable(test_debugger test_debugger.c)
+target_link_libraries(test_debugger PRIVATE waicore)
+target_compile_options(test_debugger PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Wconversion;-Wshadow;-Werror>)
+add_test(NAME debugger COMMAND test_debugger)

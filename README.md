@@ -4,22 +4,13 @@ Register-based bytecode VM with a handwritten x86-64 assembly execution core.
 
 ## Features
 
-Current v0.1 scope:
-
-- x86-64 NASM VM runtime
-- C17 assembler for `.wai` source files
-- fixed-width internal bytecode instruction encoding
-- 8 signed 64-bit VM registers: `r0` through `r7`
-- arithmetic, branch, print, and halt instructions
-- examples and CTest-based smoke tests
-
-Planned later:
-
-- persistent `.waibc` bytecode files
-- bytecode disassembler
-- interactive debugger
-- bytecode metadata inspection
-- broader test coverage and CI release artifacts
+- x86-64 NASM VM runtime for normal execution
+- C17 assembler and disassembler
+- custom `.waibc` bytecode format
+- interactive debugger with stepping, register inspection, disassembly view, and breakpoints
+- 8-register signed integer VM
+- fixed-width 12-byte instruction encoding
+- examples, tests, and GitHub Actions CI
 
 ## Quickstart
 
@@ -52,30 +43,37 @@ print r1
 halt
 ```
 
+```sh
+./build/waivm run examples/factorial.wai
+```
+
+Expected output:
+
+```text
+120
+```
+
 ## CLI
 
-Implemented in v0.1:
-
 ```sh
-waivm run <file.wai>
+waivm run <file.wai|file.waibc>
+waivm asm <input.wai> -o <output.waibc>
+waivm dis <file.wai|file.waibc>
+waivm debug <file.wai|file.waibc>
+waivm info <file.waibc>
 waivm help
 ```
 
-Reserved for later versions:
+Example bytecode workflow:
 
 ```sh
-waivm asm <input.wai> -o <output.waibc>
-waivm run <file.waibc>
-waivm dis <file.waibc>
-waivm debug <file.wai|file.waibc>
-waivm info <file.waibc>
+./build/waivm asm examples/sum.wai -o sum.waibc
+./build/waivm info sum.waibc
+./build/waivm dis sum.waibc
+./build/waivm run sum.waibc
 ```
 
-The CLI rejects unimplemented commands instead of pretending they exist.
-
 ## Instruction Set
-
-v0.1 accepts this source-level instruction set:
 
 | Instruction | Meaning |
 |---|---|
@@ -91,37 +89,65 @@ v0.1 accepts this source-level instruction set:
 | `print rX` | print register value |
 | `halt` | stop execution |
 
-Registers are signed 64-bit values. The runtime rejects division by zero and invalid bytecode state.
+Registers are signed 64-bit values. Division by zero, invalid registers, bad opcodes, and invalid jumps fail cleanly.
 
 ## Bytecode Format
 
-v0.1 uses a fixed-width in-memory instruction encoding:
+`.waibc` files use a 32-byte little-endian header followed by fixed-width 12-byte instructions.
 
-```c
-typedef struct wai_instruction {
-    uint8_t opcode;
-    uint8_t a;
-    uint8_t b;
-    uint8_t c;
-    int64_t imm;
-} wai_instruction;
-```
+Header:
 
-The struct is packed to 12 bytes. Persistent `.waibc` files are intentionally deferred to v0.3.
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 4 | magic bytes: `WAI0` |
+| 4 | 2 | version: `1` |
+| 6 | 2 | header size: `32` |
+| 8 | 2 | instruction size: `12` |
+| 10 | 2 | register count: `8` |
+| 12 | 4 | flags: `0` |
+| 16 | 8 | code instruction count |
+| 24 | 8 | data size: `0` |
+
+Instruction:
+
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 1 | opcode |
+| 1 | 1 | operand `a` |
+| 2 | 1 | operand `b` |
+| 3 | 1 | reserved operand `c` |
+| 4 | 8 | signed immediate / jump target |
 
 ## Architecture
 
 The runtime boundary is deliberate:
 
-- C owns parsing, source loading, validation, VM initialization, and CLI behavior.
-- NASM owns the bytecode dispatch loop and executes VM instructions directly against the C-defined VM state.
-- C exposes a tiny print hook used by the assembly runtime.
+- C owns CLI parsing, source loading, bytecode loading/writing, validation, assembler, disassembler, debugger UX, and tests.
+- NASM owns the normal bytecode dispatch loop and executes VM instructions directly against the C-defined VM state.
+- The debugger uses a C stepping engine so it can stop between instructions, inspect state, and resume predictably.
+- C exposes a small print hook used by both execution paths.
 
 See [`docs/architecture.md`](docs/architecture.md) and [`docs/vm-abi.md`](docs/vm-abi.md).
 
 ## Debugger
 
-Not implemented in v0.1. The planned debugger is documented in [`docs/debugger.md`](docs/debugger.md).
+```sh
+./build/waivm debug examples/sum.wai
+```
+
+Useful commands:
+
+```text
+help
+regs
+ip
+dis
+step
+break 5
+continue
+clear 5
+quit
+```
 
 ## Build
 
@@ -141,10 +167,10 @@ cmake --build build
 ## Tests
 
 ```sh
-ctest --test-dir build
+ctest --test-dir build --output-on-failure
 ```
 
-The v0.1 tests cover example execution, assembler parsing, runtime error handling, and basic validation.
+Tests cover assembler parsing, VM execution, bytecode write/read, disassembly, debugger command flow, and basic error handling.
 
 ## Roadmap
 
@@ -160,18 +186,20 @@ Current:
 - arithmetic and branch instructions
 - handwritten NASM execution loop
 - C17 source assembler
+- `.waibc` bytecode writer/reader
+- bytecode metadata `info` command
+- disassembler
+- interactive debugger
 - example programs
-- test harness
+- test harness and CI configuration
 
 Not implemented yet:
 
-- persistent `.waibc` files
-- disassembler
-- interactive debugger
-- metadata `info` command
 - stack frames
 - function calls
 - heap allocation
+- strings
+- floating point values
 - JIT compilation
 - Windows runtime
 

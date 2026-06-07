@@ -1,48 +1,43 @@
 # Roadmap
 
-## v0.1 — Assembly execution core
+## v0.1
 
-Implemented target:
+Implemented:
 
-- Linux x86-64 NASM execution loop
-- C17 `.wai` source assembler
-- register VM with `r0` through `r7`
-- `MOV`, `ADD`, `SUB`, `MUL`, `DIV`, `JMP`, `JZ`, `JNZ`, `PRINT`, `HALT`
-- examples for sum, factorial, Fibonacci, loop, and branch
-- minimal CTest suite
+- NASM execution loop;
+- C17 `.wai` assembler;
+- register arithmetic and branching;
+- example programs;
+- smoke tests.
 
-## v0.2 — Cleaner runtime API
+## v2
 
-- single-step execution entry point
-- better error locations
-- optional trace mode
+Implemented:
 
-## v0.3 — Bytecode files + disassembler
+- `.waibc` bytecode writer;
+- `.waibc` bytecode loader;
+- bytecode metadata `info` command;
+- disassembler;
+- interactive debugger;
+- debugger stepping and breakpoints;
+- additional tests.
 
-- write `.waibc`
-- read `.waibc`
-- validate `WAI0` header
-- `waivm asm`
-- `waivm dis`
-- `waivm info`
+## v0.3 Candidates
 
-## v0.4 — Debugger
+- better diagnostics with source spans;
+- labels preserved in disassembly sidecar data;
+- optional memory instructions;
+- richer CLI integration tests;
+- release artifacts in CI.
 
-- breakpoints
-- register dump
-- disassemble around IP
-- continue and step
+## Explicitly Out of Scope Before v1.0
 
-## v0.5 — CI and polish
-
-- GitHub Actions
-- broader tests
-- README screenshots
-- release artifact
-
-## v1.0 — Portfolio release
-
-- stable bytecode format
-- stable instruction set
-- complete docs
-- tagged release
+- JIT compiler;
+- garbage collector;
+- object system;
+- strings;
+- networking;
+- package manager;
+- self-hosted compiler;
+- assembler written in assembly;
+- web UI.

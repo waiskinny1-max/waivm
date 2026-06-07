@@ -1,32 +1,63 @@
 # Bytecode Format
 
-v0.1 does not write `.waibc` files yet.
+waivm bytecode files use the `.waibc` extension.
 
-The internal instruction encoding is already fixed so the NASM runtime can stay simple:
+## Endianness
 
-```c
-typedef struct wai_instruction {
-    uint8_t opcode;
-    uint8_t a;
-    uint8_t b;
-    uint8_t c;
-    int64_t imm;
-} wai_instruction;
+All multi-byte numeric fields are little-endian.
+
+## File Layout
+
+```text
++----------------------+ 0
+| 32-byte header       |
++----------------------+ 32
+| instruction 0        | 12 bytes
++----------------------+
+| instruction 1        | 12 bytes
++----------------------+
+| ...                  |
++----------------------+
 ```
 
-The packed size is 12 bytes.
+## Header
 
-## Planned `.waibc` header for v0.3
+| Offset | Size | Field | Value in v1 |
+|---:|---:|---|---|
+| 0 | 4 | magic | `WAI0` |
+| 4 | 2 | version | `1` |
+| 6 | 2 | header size | `32` |
+| 8 | 2 | instruction size | `12` |
+| 10 | 2 | register count | `8` |
+| 12 | 4 | flags | `0` |
+| 16 | 8 | code count | number of instructions |
+| 24 | 8 | data size | `0` |
 
-The planned persistent bytecode format starts with:
+## Instruction Encoding
 
-| Field | Size | Purpose |
-|---|---:|---|
-| magic | 4 | `WAI0` |
-| version | 2 | bytecode version |
-| register_count | 2 | expected register count |
-| flags | 4 | format flags |
-| code_size | 8 | instruction byte length |
-| data_size | 8 | reserved data section length |
+Each instruction is exactly 12 bytes:
 
-This document intentionally marks file persistence as future work.
+| Offset | Size | Field | Meaning |
+|---:|---:|---|---|
+| 0 | 1 | opcode | instruction selector |
+| 1 | 1 | `a` | destination or condition register |
+| 2 | 1 | `b` | source register |
+| 3 | 1 | `c` | reserved, currently zero |
+| 4 | 8 | `imm` | signed immediate or absolute instruction index |
+
+## Validation
+
+The loader rejects:
+
+- bad magic bytes;
+- unsupported version;
+- wrong header size;
+- wrong instruction size;
+- wrong register count;
+- non-zero data size;
+- trailing bytes after the encoded program;
+- invalid opcodes;
+- invalid register operands;
+- jump targets outside the program.
+
+The format is intentionally plain. It is built for inspectability and for a simple assembly dispatch loop, not compression.

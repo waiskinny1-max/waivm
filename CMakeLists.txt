@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
-project(waivm VERSION 0.1.0 LANGUAGES C ASM_NASM)
+project(waivm VERSION 2.0.0 LANGUAGES C ASM_NASM)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-    message(FATAL_ERROR "waivm v0.1 requires x86-64")
+    message(FATAL_ERROR "waivm v2 requires x86-64")
 endif()
 
 if(NOT UNIX OR APPLE)
-    message(FATAL_ERROR "waivm v0.1 currently targets Linux x86-64")
+    message(FATAL_ERROR "waivm v2 currently targets Linux x86-64")
 endif()
 
 set(CMAKE_ASM_NASM_OBJECT_FORMAT elf64)
@@ -20,6 +20,8 @@ add_library(waicore STATIC
     src/bytecode.c
     src/instruction.c
     src/assembler.c
+    src/disassembler.c
+    src/debugger.c
     src/vm.c
     src/error.c
     asm/vm_linux_x86_64.asm

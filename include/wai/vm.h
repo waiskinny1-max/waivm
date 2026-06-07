@@ -29,11 +29,12 @@ typedef struct wai_vm {
 void wai_vm_init(wai_vm *vm, const wai_instruction *code, uint64_t code_count);
 void wai_vm_set_print_stream(wai_vm *vm, FILE *stream);
 wai_error_code wai_vm_execute(wai_vm *vm);
+wai_error_code wai_vm_step(wai_vm *vm);
 
 /* Implemented in asm/vm_linux_x86_64.asm. */
 int wai_vm_exec_asm(wai_vm *vm);
 
-/* Called from the assembly runtime. */
+/* Called from the assembly runtime and the C stepping runtime. */
 void wai_vm_emit_print(wai_vm *vm, wai_value value);
 
 #ifdef __cplusplus
