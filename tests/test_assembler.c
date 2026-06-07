@@ -27,6 +27,30 @@ int main(void) {
     failures += require(program.code[2].opcode == WAI_OP_ADD_REG, "third opcode should be add register");
     wai_program_free(&program);
 
+    const char *v3_source =
+        "mov r0, 9\n"
+        "store [16], r0\n"
+        "load r1, [16]\n"
+        "push r1\n"
+        "pop r2\n"
+        "cmp r2, 9\n"
+        "je ok\n"
+        "halt\n"
+        "ok:\n"
+        "call done\n"
+        "halt\n"
+        "done:\n"
+        "ret\n";
+    result = wai_assemble_source(v3_source, &program);
+    failures += require(result.error == WAI_OK, "assembler should accept v3 instructions");
+    failures += require(program.count == 11u, "v3 source should have 11 instructions");
+    failures += require(program.code[1].opcode == WAI_OP_STORE_ABS, "store absolute opcode expected");
+    failures += require(program.code[2].opcode == WAI_OP_LOAD_ABS, "load absolute opcode expected");
+    failures += require(program.code[5].opcode == WAI_OP_CMP_IMM, "cmp immediate opcode expected");
+    failures += require(program.code[6].opcode == WAI_OP_JE, "je opcode expected");
+    failures += require(program.code[8].opcode == WAI_OP_CALL, "call opcode expected");
+    wai_program_free(&program);
+
     const char *bad_source = "wat r0, 1\n";
     result = wai_assemble_source(bad_source, &program);
     failures += require(result.error == WAI_ERR_PARSE, "assembler should reject unknown instruction");

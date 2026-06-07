@@ -2,42 +2,42 @@
 
 ## v0.1
 
-Implemented:
-
+- register-only VM;
 - NASM execution loop;
-- C17 `.wai` assembler;
-- register arithmetic and branching;
-- example programs;
-- smoke tests.
+- C assembler for `.wai` files;
+- core arithmetic, branches, print, halt;
+- basic examples and tests.
 
 ## v2
 
-Implemented:
+- `.waibc` binary file writer/reader;
+- bytecode validation;
+- `asm`, `dis`, `info`, and `debug` commands;
+- C stepping engine for debugger;
+- documentation and CI polish.
 
-- `.waibc` bytecode writer;
-- `.waibc` bytecode loader;
-- bytecode metadata `info` command;
-- disassembler;
-- interactive debugger;
-- debugger stepping and breakpoints;
-- additional tests.
+## v3
 
-## v0.3 Candidates
+- 64 KiB VM memory;
+- `load` and `store` instructions;
+- VM stack with `push` and `pop`;
+- `call` and `ret`;
+- `cmp`, `je`, and `jne`;
+- debugger memory dump;
+- debugger stack dump;
+- memory/call/compare examples and tests.
 
-- better diagnostics with source spans;
-- labels preserved in disassembly sidecar data;
-- optional memory instructions;
-- richer CLI integration tests;
-- release artifacts in CI.
+## Later Candidates
 
-## Explicitly Out of Scope Before v1.0
+These are deliberately not implemented yet:
 
-- JIT compiler;
-- garbage collector;
-- object system;
+- stack-frame ABI;
+- local variable conventions;
+- function arguments/returns beyond raw registers and stack;
+- static data section in `.waibc`;
+- heap allocation;
 - strings;
-- networking;
-- package manager;
-- self-hosted compiler;
-- assembler written in assembly;
-- web UI.
+- floating point values;
+- richer debugger commands;
+- Windows x64 runtime;
+- JIT compilation.

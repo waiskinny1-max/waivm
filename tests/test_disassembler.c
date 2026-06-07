@@ -7,7 +7,9 @@ int main(void) {
     const char *source =
         "mov r0, 2\n"
         "add r0, 3\n"
-        "print r0\n"
+        "store [8], r0\n"
+        "load r1, [8]\n"
+        "print r1\n"
         "halt\n";
 
     wai_program program;
@@ -37,7 +39,15 @@ int main(void) {
         (void)fprintf(stderr, "missing mov disassembly\n%s\n", buffer);
         return 1;
     }
-    if (strstr(buffer, "0002  print r0") == NULL) {
+    if (strstr(buffer, "0002  store [8], r0") == NULL) {
+        (void)fprintf(stderr, "missing store disassembly\n%s\n", buffer);
+        return 1;
+    }
+    if (strstr(buffer, "0003  load r1, [8]") == NULL) {
+        (void)fprintf(stderr, "missing load disassembly\n%s\n", buffer);
+        return 1;
+    }
+    if (strstr(buffer, "0004  print r1") == NULL) {
         (void)fprintf(stderr, "missing print disassembly\n%s\n", buffer);
         return 1;
     }

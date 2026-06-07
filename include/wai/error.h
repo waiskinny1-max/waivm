@@ -15,7 +15,10 @@ typedef enum wai_error_code {
     WAI_ERR_BAD_REGISTER = 6,
     WAI_ERR_DIV_ZERO = 7,
     WAI_ERR_BAD_JUMP = 8,
-    WAI_ERR_UNSUPPORTED = 9
+    WAI_ERR_UNSUPPORTED = 9,
+    WAI_ERR_MEMORY_OOB = 10,
+    WAI_ERR_STACK_OVERFLOW = 11,
+    WAI_ERR_STACK_UNDERFLOW = 12
 } wai_error_code;
 
 const char *wai_error_string(wai_error_code code);

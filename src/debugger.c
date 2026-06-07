@@ -20,23 +20,26 @@ static char *trim_line(char *line) {
 static void print_help(FILE *out) {
     (void)fprintf(out,
         "commands:\n"
-        "  help              show this help\n"
-        "  regs              print registers\n"
-        "  ip                print instruction pointer\n"
-        "  dis               disassemble around ip\n"
-        "  step | s          execute one instruction\n"
-        "  continue | c      run until halt, error, or breakpoint\n"
-        "  break | b <ip>    set breakpoint\n"
-        "  clear <ip>        clear breakpoint\n"
-        "  quit | q          exit debugger\n");
+        "  help                 show this help\n"
+        "  regs                 print registers, flags, ip, sp\n"
+        "  ip                   print instruction pointer\n"
+        "  dis                  disassemble around ip\n"
+        "  mem <addr> [bytes]   dump memory bytes, max 256 bytes\n"
+        "  stack [count]        dump stack qwords from sp\n"
+        "  step | s             execute one instruction\n"
+        "  continue | c         run until halt, error, or breakpoint\n"
+        "  break | b <ip>       set breakpoint\n"
+        "  clear <ip>           clear breakpoint\n"
+        "  quit | q             exit debugger\n");
 }
 
 static void print_regs(const wai_vm *vm, FILE *out) {
     for (uint8_t i = 0; i < WAI_REGISTER_COUNT; i++) {
         (void)fprintf(out, "r%u=%lld%s", (unsigned)i, (long long)vm->regs[i], i == 7u ? "\n" : "  ");
     }
-    (void)fprintf(out, "ip=%llu zf=%u halted=%u prints=%llu\n",
+    (void)fprintf(out, "ip=%llu sp=%llu zf=%u halted=%u prints=%llu\n",
                   (unsigned long long)vm->ip,
+                  (unsigned long long)vm->sp,
                   (unsigned)vm->zf,
                   (unsigned)vm->halted,
                   (unsigned long long)vm->print_count);
@@ -66,6 +69,92 @@ static int parse_index(const char *text, size_t limit, size_t *out) {
     }
     *out = (size_t)value;
     return 1;
+}
+
+static int parse_u64_token(const char *text, uint64_t *out, const char **next) {
+    if (text == NULL || *text == '\0') {
+        return 0;
+    }
+    char *end = NULL;
+    unsigned long long value = strtoull(text, &end, 0);
+    if (end == text) {
+        return 0;
+    }
+    while (*end != '\0' && isspace((unsigned char)*end)) {
+        end++;
+    }
+    *out = (uint64_t)value;
+    if (next != NULL) {
+        *next = end;
+    }
+    return 1;
+}
+
+static void dump_memory(const wai_vm *vm, const char *arg, FILE *out) {
+    uint64_t address = 0;
+    const char *next = NULL;
+    if (!parse_u64_token(arg, &address, &next)) {
+        (void)fprintf(out, "usage: mem <addr> [bytes]\n");
+        return;
+    }
+    uint64_t count = 64u;
+    if (next != NULL && *next != '\0') {
+        const char *tail = NULL;
+        if (!parse_u64_token(next, &count, &tail) || (tail != NULL && *tail != '\0')) {
+            (void)fprintf(out, "usage: mem <addr> [bytes]\n");
+            return;
+        }
+    }
+    if (count > 256u) {
+        count = 256u;
+    }
+    if (address >= (uint64_t)WAI_MEMORY_SIZE) {
+        (void)fprintf(out, "memory address out of bounds\n");
+        return;
+    }
+    if (address + count > (uint64_t)WAI_MEMORY_SIZE) {
+        count = (uint64_t)WAI_MEMORY_SIZE - address;
+    }
+    for (uint64_t i = 0; i < count; i += 16u) {
+        uint64_t line_count = count - i;
+        if (line_count > 16u) {
+            line_count = 16u;
+        }
+        (void)fprintf(out, "%04llx:", (unsigned long long)(address + i));
+        for (uint64_t j = 0; j < line_count; j++) {
+            (void)fprintf(out, " %02x", (unsigned)vm->memory[address + i + j]);
+        }
+        (void)fprintf(out, "\n");
+    }
+}
+
+static void dump_stack(const wai_vm *vm, const char *arg, FILE *out) {
+    uint64_t count = 8u;
+    if (arg != NULL && *arg != '\0') {
+        const char *tail = NULL;
+        if (!parse_u64_token(arg, &count, &tail) || (tail != NULL && *tail != '\0')) {
+            (void)fprintf(out, "usage: stack [count]\n");
+            return;
+        }
+    }
+    if (count > 32u) {
+        count = 32u;
+    }
+    if (vm->sp > (uint64_t)(WAI_MEMORY_SIZE - sizeof(wai_value))) {
+        (void)fprintf(out, "stack empty\n");
+        return;
+    }
+    uint64_t address = vm->sp;
+    for (uint64_t i = 0; i < count && address <= (uint64_t)(WAI_MEMORY_SIZE - sizeof(wai_value)); i++) {
+        wai_value value = 0;
+        wai_error_code status = wai_vm_memory_load_i64(vm, address, &value);
+        if (status != WAI_OK) {
+            (void)fprintf(out, "stack read error: %s\n", wai_error_string(status));
+            return;
+        }
+        (void)fprintf(out, "[%04llx] %lld\n", (unsigned long long)address, (long long)value);
+        address += sizeof(wai_value);
+    }
 }
 
 static wai_error_code do_step(wai_vm *vm, FILE *out) {
@@ -126,6 +215,10 @@ wai_error_code wai_debugger_run(const wai_program *program, FILE *in, FILE *out)
             (void)fprintf(out, "%llu\n", (unsigned long long)vm.ip);
         } else if (strcmp(cmd, "dis") == 0) {
             dis_around(program, &vm, out);
+        } else if (strcmp(cmd, "mem") == 0) {
+            dump_memory(&vm, arg, out);
+        } else if (strcmp(cmd, "stack") == 0) {
+            dump_stack(&vm, arg, out);
         } else if (strcmp(cmd, "step") == 0 || strcmp(cmd, "s") == 0) {
             if (vm.halted != 0u) {
                 (void)fprintf(out, "halted\n");

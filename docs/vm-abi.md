@@ -25,6 +25,8 @@ System V AMD64 ABI:
 | `code` | 80 |
 | `code_count` | 88 |
 | `error` | 96 |
+| `memory` | 128 |
+| `sp` | 65664 |
 
 The assembly runtime does not access `print_stream`, `last_print`, or `print_count` directly. It calls `wai_vm_emit_print(vm, value)`.
 
@@ -41,3 +43,12 @@ Each instruction is 12 bytes:
 | `imm` | 4 |
 
 The instruction struct is packed in C and asserted to be exactly 12 bytes.
+
+## Stack Layout
+
+`sp` starts at `65536`. Stack operations store 64-bit values in VM memory and move `sp` by 8 bytes:
+
+- `push`: `sp -= 8`, then store value at `memory[sp]`;
+- `pop`: load value at `memory[sp]`, then `sp += 8`.
+
+`call` pushes the return instruction index and jumps to an absolute instruction index. `ret` pops the return instruction index and jumps to it.

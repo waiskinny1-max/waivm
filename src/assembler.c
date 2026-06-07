@@ -28,6 +28,18 @@ typedef struct label_table {
     size_t pending_capacity;
 } label_table;
 
+typedef enum mem_operand_kind {
+    MEM_OPERAND_INVALID = 0,
+    MEM_OPERAND_ABS,
+    MEM_OPERAND_REG
+} mem_operand_kind;
+
+typedef struct mem_operand {
+    mem_operand_kind kind;
+    uint8_t reg;
+    wai_value address;
+} mem_operand;
+
 static void result_set(wai_assembler_result *result, wai_error_code error, int line, const char *message) {
     result->error = error;
     result->line = line;
@@ -123,6 +135,36 @@ static int parse_i64(const char *token, wai_value *out) {
     }
     *out = (wai_value)value;
     return 1;
+}
+
+static int parse_memory_operand(const char *token, mem_operand *out) {
+    size_t len = token == NULL ? 0u : strlen(token);
+    if (len < 3u || token[0] != '[' || token[len - 1u] != ']') {
+        return 0;
+    }
+    char inner[64];
+    if (len - 2u >= sizeof(inner)) {
+        return 0;
+    }
+    memcpy(inner, token + 1u, len - 2u);
+    inner[len - 2u] = '\0';
+    char *trimmed = trim(inner);
+
+    uint8_t reg = 0;
+    wai_value address = 0;
+    if (parse_register(trimmed, &reg)) {
+        out->kind = MEM_OPERAND_REG;
+        out->reg = reg;
+        out->address = 0;
+        return 1;
+    }
+    if (parse_i64(trimmed, &address)) {
+        out->kind = MEM_OPERAND_ABS;
+        out->reg = 0;
+        out->address = address;
+        return 1;
+    }
+    return 0;
 }
 
 static void label_table_free(label_table *table) {
@@ -246,6 +288,8 @@ static wai_error_code parse_two_operand_alu(const char *mnemonic, char **tokens,
         *out = make_instr(rhs_is_reg ? WAI_OP_MUL_REG : WAI_OP_MUL_IMM);
     } else if (strcmp(mnemonic, "div") == 0) {
         *out = make_instr(rhs_is_reg ? WAI_OP_DIV_REG : WAI_OP_DIV_IMM);
+    } else if (strcmp(mnemonic, "cmp") == 0) {
+        *out = make_instr(rhs_is_reg ? WAI_OP_CMP_REG : WAI_OP_CMP_IMM);
     } else {
         return WAI_ERR_PARSE;
     }
@@ -257,6 +301,65 @@ static wai_error_code parse_two_operand_alu(const char *mnemonic, char **tokens,
         out->imm = imm;
     }
     return WAI_OK;
+}
+
+static wai_error_code parse_load(char **tokens, int token_count, wai_instruction *out) {
+    if (token_count != 3) {
+        return WAI_ERR_PARSE;
+    }
+    uint8_t dst = 0;
+    mem_operand mem;
+    if (!parse_register(tokens[1], &dst) || !parse_memory_operand(tokens[2], &mem)) {
+        return WAI_ERR_PARSE;
+    }
+    *out = make_instr(mem.kind == MEM_OPERAND_REG ? WAI_OP_LOAD_REG : WAI_OP_LOAD_ABS);
+    out->a = dst;
+    if (mem.kind == MEM_OPERAND_REG) {
+        out->b = mem.reg;
+    } else {
+        out->imm = mem.address;
+    }
+    return WAI_OK;
+}
+
+static wai_error_code parse_store(char **tokens, int token_count, wai_instruction *out) {
+    if (token_count != 3) {
+        return WAI_ERR_PARSE;
+    }
+    mem_operand mem;
+    uint8_t src = 0;
+    if (!parse_memory_operand(tokens[1], &mem) || !parse_register(tokens[2], &src)) {
+        return WAI_ERR_PARSE;
+    }
+    *out = make_instr(mem.kind == MEM_OPERAND_REG ? WAI_OP_STORE_REG : WAI_OP_STORE_ABS);
+    out->a = src;
+    if (mem.kind == MEM_OPERAND_REG) {
+        out->b = mem.reg;
+    } else {
+        out->imm = mem.address;
+    }
+    return WAI_OK;
+}
+
+static wai_error_code parse_one_register(wai_opcode opcode, char **tokens, int token_count, wai_instruction *out) {
+    if (token_count != 2) {
+        return WAI_ERR_PARSE;
+    }
+    uint8_t reg = 0;
+    if (!parse_register(tokens[1], &reg)) {
+        return WAI_ERR_PARSE;
+    }
+    *out = make_instr(opcode);
+    out->a = reg;
+    return WAI_OK;
+}
+
+static wai_error_code parse_label_jump(wai_opcode opcode, char **tokens, int token_count, label_table *labels, wai_program *program, int line_number, wai_instruction *out) {
+    if (token_count != 2 || !is_identifier(tokens[1])) {
+        return WAI_ERR_PARSE;
+    }
+    *out = make_instr(opcode);
+    return pending_add(labels, program->count, tokens[1], line_number);
 }
 
 static wai_error_code resolve_pending(const label_table *labels, wai_program *program, wai_assembler_result *result) {
@@ -345,15 +448,24 @@ wai_assembler_result wai_assemble_source(const char *source, wai_program *out_pr
 
         if (strcmp(mnemonic, "mov") == 0 || strcmp(mnemonic, "add") == 0 ||
             strcmp(mnemonic, "sub") == 0 || strcmp(mnemonic, "mul") == 0 ||
-            strcmp(mnemonic, "div") == 0) {
+            strcmp(mnemonic, "div") == 0 || strcmp(mnemonic, "cmp") == 0) {
             status = parse_two_operand_alu(mnemonic, tokens, token_count, &instr);
+        } else if (strcmp(mnemonic, "load") == 0) {
+            status = parse_load(tokens, token_count, &instr);
+        } else if (strcmp(mnemonic, "store") == 0) {
+            status = parse_store(tokens, token_count, &instr);
+        } else if (strcmp(mnemonic, "push") == 0) {
+            status = parse_one_register(WAI_OP_PUSH, tokens, token_count, &instr);
+        } else if (strcmp(mnemonic, "pop") == 0) {
+            status = parse_one_register(WAI_OP_POP, tokens, token_count, &instr);
         } else if (strcmp(mnemonic, "jmp") == 0) {
-            if (token_count != 2 || !is_identifier(tokens[1])) {
-                status = WAI_ERR_PARSE;
-            } else {
-                instr = make_instr(WAI_OP_JMP);
-                status = pending_add(&labels, out_program->count, tokens[1], line_number);
-            }
+            status = parse_label_jump(WAI_OP_JMP, tokens, token_count, &labels, out_program, line_number, &instr);
+        } else if (strcmp(mnemonic, "call") == 0) {
+            status = parse_label_jump(WAI_OP_CALL, tokens, token_count, &labels, out_program, line_number, &instr);
+        } else if (strcmp(mnemonic, "je") == 0) {
+            status = parse_label_jump(WAI_OP_JE, tokens, token_count, &labels, out_program, line_number, &instr);
+        } else if (strcmp(mnemonic, "jne") == 0) {
+            status = parse_label_jump(WAI_OP_JNE, tokens, token_count, &labels, out_program, line_number, &instr);
         } else if (strcmp(mnemonic, "jz") == 0 || strcmp(mnemonic, "jnz") == 0) {
             if (token_count != 3 || !is_identifier(tokens[2])) {
                 status = WAI_ERR_PARSE;
@@ -368,12 +480,12 @@ wai_assembler_result wai_assemble_source(const char *source, wai_program *out_pr
                 }
             }
         } else if (strcmp(mnemonic, "print") == 0) {
-            uint8_t reg = 0;
-            if (token_count != 2 || !parse_register(tokens[1], &reg)) {
+            status = parse_one_register(WAI_OP_PRINT, tokens, token_count, &instr);
+        } else if (strcmp(mnemonic, "ret") == 0) {
+            if (token_count != 1) {
                 status = WAI_ERR_PARSE;
             } else {
-                instr = make_instr(WAI_OP_PRINT);
-                instr.a = reg;
+                instr = make_instr(WAI_OP_RET);
             }
         } else if (strcmp(mnemonic, "halt") == 0) {
             if (token_count != 1) {

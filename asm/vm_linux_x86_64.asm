@@ -18,6 +18,18 @@ BITS 64
 %define WAI_OP_JNZ 13
 %define WAI_OP_PRINT 14
 %define WAI_OP_HALT 15
+%define WAI_OP_LOAD_ABS 16
+%define WAI_OP_LOAD_REG 17
+%define WAI_OP_STORE_ABS 18
+%define WAI_OP_STORE_REG 19
+%define WAI_OP_PUSH 20
+%define WAI_OP_POP 21
+%define WAI_OP_CALL 22
+%define WAI_OP_RET 23
+%define WAI_OP_CMP_IMM 24
+%define WAI_OP_CMP_REG 25
+%define WAI_OP_JE 26
+%define WAI_OP_JNE 27
 
 %define WAI_OK 0
 %define WAI_ERR_BAD_OPCODE 4
@@ -25,6 +37,9 @@ BITS 64
 %define WAI_ERR_BAD_REGISTER 6
 %define WAI_ERR_DIV_ZERO 7
 %define WAI_ERR_BAD_JUMP 8
+%define WAI_ERR_MEMORY_OOB 10
+%define WAI_ERR_STACK_OVERFLOW 11
+%define WAI_ERR_STACK_UNDERFLOW 12
 
 %define VM_REGS 0
 %define VM_IP 64
@@ -33,6 +48,11 @@ BITS 64
 %define VM_CODE 80
 %define VM_CODE_COUNT 88
 %define VM_ERROR 96
+%define VM_MEMORY 128
+%define VM_SP 65664
+
+%define WAI_MEMORY_SIZE 65536
+%define WAI_VALUE_SIZE 8
 
 %define INS_OPCODE 0
 %define INS_A 1
@@ -104,6 +124,30 @@ wai_vm_exec_asm:
     je .op_print
     cmp eax, WAI_OP_HALT
     je .op_halt
+    cmp eax, WAI_OP_LOAD_ABS
+    je .op_load_abs
+    cmp eax, WAI_OP_LOAD_REG
+    je .op_load_reg
+    cmp eax, WAI_OP_STORE_ABS
+    je .op_store_abs
+    cmp eax, WAI_OP_STORE_REG
+    je .op_store_reg
+    cmp eax, WAI_OP_PUSH
+    je .op_push
+    cmp eax, WAI_OP_POP
+    je .op_pop
+    cmp eax, WAI_OP_CALL
+    je .op_call
+    cmp eax, WAI_OP_RET
+    je .op_ret
+    cmp eax, WAI_OP_CMP_IMM
+    je .op_cmp_imm
+    cmp eax, WAI_OP_CMP_REG
+    je .op_cmp_reg
+    cmp eax, WAI_OP_JE
+    je .op_je
+    cmp eax, WAI_OP_JNE
+    je .op_jne
 
     jmp .err_bad_opcode
 
@@ -121,13 +165,15 @@ wai_vm_exec_asm:
     ret
 
 .load_reg_a_index:
-    mov al, [r13 + INS_A]
-    call .check_reg_al
+    movzx rax, byte [r13 + INS_A]
+    cmp al, 7
+    ja .err_bad_register
     ret
 
 .load_reg_b_index:
-    mov al, [r13 + INS_B]
-    call .check_reg_al
+    movzx rax, byte [r13 + INS_B]
+    cmp al, 7
+    ja .err_bad_register
     ret
 
 .check_jump_imm:
@@ -137,6 +183,37 @@ wai_vm_exec_asm:
     mov rbx, [r12 + VM_CODE_COUNT]
     cmp rax, rbx
     jae .err_bad_jump
+    ret
+
+.check_jump_rax:
+    mov rbx, [r12 + VM_CODE_COUNT]
+    cmp rax, rbx
+    jae .err_bad_jump
+    ret
+
+.check_mem_addr_rbx:
+    test rbx, rbx
+    js .err_memory_oob
+    cmp rbx, WAI_MEMORY_SIZE - WAI_VALUE_SIZE
+    ja .err_memory_oob
+    ret
+
+.push_rax:
+    mov rbx, [r12 + VM_SP]
+    cmp rbx, WAI_VALUE_SIZE
+    jb .err_stack_overflow
+    sub rbx, WAI_VALUE_SIZE
+    mov [r12 + VM_SP], rbx
+    mov [r12 + VM_MEMORY + rbx], rax
+    ret
+
+.pop_rax:
+    mov rbx, [r12 + VM_SP]
+    cmp rbx, WAI_MEMORY_SIZE - WAI_VALUE_SIZE
+    ja .err_stack_underflow
+    mov rax, [r12 + VM_MEMORY + rbx]
+    add rbx, WAI_VALUE_SIZE
+    mov [r12 + VM_SP], rbx
     ret
 
 ; ----- instructions -----
@@ -282,6 +359,104 @@ wai_vm_exec_asm:
     mov dword [r12 + VM_ERROR], WAI_OK
     jmp .ok_return
 
+.op_load_abs:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rbx, [r13 + INS_IMM]
+    call .check_mem_addr_rbx
+    mov rax, [r12 + VM_MEMORY + rbx]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_load_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov rbx, [r12 + VM_REGS + rax * 8]
+    call .check_mem_addr_rbx
+    mov rax, [r12 + VM_MEMORY + rbx]
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_store_abs:
+    call .load_reg_a_index
+    mov r14, rax
+    mov rbx, [r13 + INS_IMM]
+    call .check_mem_addr_rbx
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    mov [r12 + VM_MEMORY + rbx], rax
+    jmp .loop
+
+.op_store_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov rbx, [r12 + VM_REGS + rax * 8]
+    call .check_mem_addr_rbx
+    mov rax, [r12 + VM_REGS + r14 * 8]
+    mov [r12 + VM_MEMORY + rbx], rax
+    jmp .loop
+
+.op_push:
+    call .load_reg_a_index
+    mov rax, [r12 + VM_REGS + rax * 8]
+    call .push_rax
+    jmp .loop
+
+.op_pop:
+    call .load_reg_a_index
+    mov r14, rax
+    call .pop_rax
+    mov [r12 + VM_REGS + r14 * 8], rax
+    call .set_zf_from_rax
+    jmp .loop
+
+.op_call:
+    call .check_jump_imm
+    mov r15, rax                ; target
+    mov rax, [r12 + VM_IP]      ; return address after call
+    call .push_rax
+    mov [r12 + VM_IP], r15
+    jmp .loop
+
+.op_ret:
+    call .pop_rax
+    call .check_jump_rax
+    mov [r12 + VM_IP], rax
+    jmp .loop
+
+.op_cmp_imm:
+    call .load_reg_a_index
+    mov rdx, [r12 + VM_REGS + rax * 8]
+    cmp rdx, [r13 + INS_IMM]
+    sete byte [r12 + VM_ZF]
+    jmp .loop
+
+.op_cmp_reg:
+    call .load_reg_a_index
+    mov r14, rax
+    call .load_reg_b_index
+    mov rdx, [r12 + VM_REGS + r14 * 8]
+    cmp rdx, [r12 + VM_REGS + rax * 8]
+    sete byte [r12 + VM_ZF]
+    jmp .loop
+
+.op_je:
+    cmp byte [r12 + VM_ZF], 0
+    je .loop
+    call .check_jump_imm
+    mov [r12 + VM_IP], rax
+    jmp .loop
+
+.op_jne:
+    cmp byte [r12 + VM_ZF], 0
+    jne .loop
+    call .check_jump_imm
+    mov [r12 + VM_IP], rax
+    jmp .loop
+
 .err_bad_opcode:
     mov dword [r12 + VM_ERROR], WAI_ERR_BAD_OPCODE
     jmp .error_return
@@ -289,13 +464,27 @@ wai_vm_exec_asm:
     mov dword [r12 + VM_ERROR], WAI_ERR_IP_OUT_OF_BOUNDS
     jmp .error_return
 .err_bad_register:
+    add rsp, 8                  ; discard helper return address
     mov dword [r12 + VM_ERROR], WAI_ERR_BAD_REGISTER
     jmp .error_return
 .err_div_zero:
     mov dword [r12 + VM_ERROR], WAI_ERR_DIV_ZERO
     jmp .error_return
 .err_bad_jump:
+    add rsp, 8                  ; discard helper return address
     mov dword [r12 + VM_ERROR], WAI_ERR_BAD_JUMP
+    jmp .error_return
+.err_memory_oob:
+    add rsp, 8                  ; discard helper return address
+    mov dword [r12 + VM_ERROR], WAI_ERR_MEMORY_OOB
+    jmp .error_return
+.err_stack_overflow:
+    add rsp, 8                  ; discard helper return address
+    mov dword [r12 + VM_ERROR], WAI_ERR_STACK_OVERFLOW
+    jmp .error_return
+.err_stack_underflow:
+    add rsp, 8                  ; discard helper return address
+    mov dword [r12 + VM_ERROR], WAI_ERR_STACK_UNDERFLOW
     jmp .error_return
 
 .ok_return:

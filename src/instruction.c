@@ -17,6 +17,18 @@ const char *wai_opcode_name(uint8_t opcode) {
         case WAI_OP_JNZ: return "jnz";
         case WAI_OP_PRINT: return "print";
         case WAI_OP_HALT: return "halt";
+        case WAI_OP_LOAD_ABS: return "load.abs";
+        case WAI_OP_LOAD_REG: return "load.reg";
+        case WAI_OP_STORE_ABS: return "store.abs";
+        case WAI_OP_STORE_REG: return "store.reg";
+        case WAI_OP_PUSH: return "push";
+        case WAI_OP_POP: return "pop";
+        case WAI_OP_CALL: return "call";
+        case WAI_OP_RET: return "ret";
+        case WAI_OP_CMP_IMM: return "cmp.imm";
+        case WAI_OP_CMP_REG: return "cmp.reg";
+        case WAI_OP_JE: return "je";
+        case WAI_OP_JNE: return "jne";
         case WAI_OP_INVALID:
         default: return "invalid";
     }

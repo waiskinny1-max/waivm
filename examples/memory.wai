@@ -1,0 +1,10 @@
+; store and reload a 64-bit value from linear VM memory
+
+mov r0, 42
+store [0], r0
+
+mov r1, 0
+load r2, [r1]
+
+print r2
+halt

@@ -26,8 +26,22 @@ typedef enum wai_opcode {
     WAI_OP_JZ = 12,
     WAI_OP_JNZ = 13,
     WAI_OP_PRINT = 14,
-    WAI_OP_HALT = 15
+    WAI_OP_HALT = 15,
+    WAI_OP_LOAD_ABS = 16,
+    WAI_OP_LOAD_REG = 17,
+    WAI_OP_STORE_ABS = 18,
+    WAI_OP_STORE_REG = 19,
+    WAI_OP_PUSH = 20,
+    WAI_OP_POP = 21,
+    WAI_OP_CALL = 22,
+    WAI_OP_RET = 23,
+    WAI_OP_CMP_IMM = 24,
+    WAI_OP_CMP_REG = 25,
+    WAI_OP_JE = 26,
+    WAI_OP_JNE = 27
 } wai_opcode;
+
+#define WAI_OPCODE_MAX WAI_OP_JNE
 
 #if defined(_MSC_VER)
 #pragma pack(push, 1)

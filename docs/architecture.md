@@ -1,38 +1,64 @@
 # Architecture
 
-waivm is a small register-based bytecode VM designed to show the boundary between low-level execution and systems tooling.
+waivm is split into a small assembly execution core and C17 tooling.
 
-## Components
+## Runtime Split
 
-| Component | Language | Role |
-|---|---|---|
-| NASM runtime | x86-64 assembly | normal VM dispatch loop |
-| VM state | C ABI struct | registers, IP, flags, code pointer, output state |
-| assembler | C17 | parse `.wai` source, resolve labels, emit instructions |
-| bytecode loader/writer | C17 | read and write `.waibc` files |
-| disassembler | C17 | print readable instructions from encoded programs |
-| debugger | C17 | command loop, stepping, register dump, breakpoints |
-| CLI | C17 | user-facing commands |
+| Layer | Responsibility |
+|---|---|
+| NASM runtime | normal bytecode dispatch loop and instruction execution |
+| C VM stepper | single-instruction stepping for debugger UX |
+| C assembler | `.wai` parsing, label resolution, instruction encoding |
+| C bytecode module | `.waibc` read/write/validation |
+| C disassembler | readable instruction listing |
+| C debugger | REPL, stepping, register dump, memory dump, stack dump, breakpoints |
+| CLI | command routing and file type detection |
+
+The normal `run` path uses `wai_vm_exec_asm`. The debugger uses `wai_vm_step`, because debugger control requires stopping between instructions and inspecting state.
 
 ## VM State
 
-The VM has 8 signed 64-bit registers and an instruction pointer. The instruction stream is an array of fixed-width 12-byte instructions.
+The VM state contains:
 
-```text
-r0-r7   signed 64-bit general-purpose registers
-ip      absolute instruction index
-zf      zero flag maintained by arithmetic/move operations
-halted  halt state
+- `r0` through `r7`, signed 64-bit registers;
+- `ip`, absolute instruction index;
+- `zf`, zero flag;
+- `halted`, stop marker;
+- pointer to fixed-width encoded instructions;
+- 64 KiB linear memory;
+- `sp`, stack pointer growing downward from `65536`;
+- error code and print bookkeeping.
+
+## Execution Model
+
+Each instruction is a packed 12-byte record:
+
+```c
+typedef struct __attribute__((packed)) wai_instruction {
+    uint8_t opcode;
+    uint8_t a;
+    uint8_t b;
+    uint8_t c;
+    int64_t imm;
+} wai_instruction;
 ```
 
-## Runtime Boundary
+The NASM loop fetches `code[ip]`, increments `ip`, dispatches on `opcode`, and mutates the VM state. Branches, calls, and returns overwrite `ip` when needed.
 
-Normal execution flows through `wai_vm_execute`, which calls `wai_vm_exec_asm` in `asm/vm_linux_x86_64.asm`.
+## Memory and Stack
 
-The C side prepares the program and initializes `wai_vm`. The assembly side reads the VM struct fields directly using ABI offsets checked by `_Static_assert` in `src/vm.c`.
+Memory is byte-addressed but v3 exposes only 64-bit `load` and `store` instructions. The valid address range for those operations is `0..65528`.
 
-The only C callback used by the assembly runtime is `wai_vm_emit_print`, which centralizes output and lets tests suppress stdout while checking the last printed value.
+The stack shares the same 64 KiB memory region and grows downward from address `65536`. It stores raw 64-bit values. There are no stack frames or local-variable conventions yet.
 
-## Debugger Boundary
+## Toolchain Flow
 
-The debugger uses `wai_vm_step` in C instead of the assembly loop. This keeps debugger behavior inspectable and avoids mixing interactive control flow into the assembly dispatch loop.
+```text
+.wai source
+  -> assembler
+  -> wai_program in memory
+  -> optional .waibc writer
+  -> NASM VM runtime or C debugger stepper
+```
+
+`.waibc` exists to make the project feel like a real toolchain, not just a source interpreter.

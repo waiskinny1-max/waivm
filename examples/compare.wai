@@ -1,0 +1,15 @@
+; cmp plus flag-based branching
+
+mov r0, 10
+cmp r0, 10
+je equal
+
+mov r1, 0
+jmp done
+
+equal:
+  mov r1, 1
+
+done:
+  print r1
+  halt

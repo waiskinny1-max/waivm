@@ -55,6 +55,48 @@ int main(void) {
         "halt\n",
         120);
 
+
+    failures += run_source_last_print(
+        "mov r0, 42\n"
+        "store [0], r0\n"
+        "mov r1, 0\n"
+        "load r2, [r1]\n"
+        "print r2\n"
+        "halt\n",
+        42);
+
+    failures += run_source_last_print(
+        "mov r0, 7\n"
+        "push r0\n"
+        "mov r0, 0\n"
+        "pop r1\n"
+        "print r1\n"
+        "halt\n",
+        7);
+
+    failures += run_source_last_print(
+        "mov r0, 21\n"
+        "call double\n"
+        "print r0\n"
+        "halt\n"
+        "double:\n"
+        "mul r0, 2\n"
+        "ret\n",
+        42);
+
+    failures += run_source_last_print(
+        "mov r0, 10\n"
+        "cmp r0, 10\n"
+        "je equal\n"
+        "mov r1, 0\n"
+        "jmp done\n"
+        "equal:\n"
+        "mov r1, 1\n"
+        "done:\n"
+        "print r1\n"
+        "halt\n",
+        1);
+
     wai_instruction bad_div[] = {
         {.opcode = WAI_OP_MOV_IMM, .a = 0, .b = 0, .c = 0, .imm = 7},
         {.opcode = WAI_OP_DIV_IMM, .a = 0, .b = 0, .c = 0, .imm = 0},

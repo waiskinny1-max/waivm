@@ -1,0 +1,10 @@
+; call/ret using the VM stack
+
+mov r0, 21
+call double
+print r0
+halt
+
+double:
+  mul r0, 2
+  ret

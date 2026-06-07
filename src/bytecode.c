@@ -1,4 +1,5 @@
 #include "wai/bytecode.h"
+#include "wai/vm.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -102,7 +103,7 @@ static wai_instruction decode_instruction(const uint8_t *src) {
 }
 
 static int opcode_known(uint8_t opcode) {
-    return opcode >= (uint8_t)WAI_OP_MOV_IMM && opcode <= (uint8_t)WAI_OP_HALT;
+    return opcode >= (uint8_t)WAI_OP_MOV_IMM && opcode <= (uint8_t)WAI_OPCODE_MAX;
 }
 
 static int instruction_registers_valid(const wai_instruction *ins) {
@@ -115,15 +116,27 @@ static int instruction_registers_valid(const wai_instruction *ins) {
         case WAI_OP_JZ:
         case WAI_OP_JNZ:
         case WAI_OP_PRINT:
+        case WAI_OP_LOAD_ABS:
+        case WAI_OP_STORE_ABS:
+        case WAI_OP_PUSH:
+        case WAI_OP_POP:
+        case WAI_OP_CMP_IMM:
             return wai_register_is_valid(ins->a);
         case WAI_OP_MOV_REG:
         case WAI_OP_ADD_REG:
         case WAI_OP_SUB_REG:
         case WAI_OP_MUL_REG:
         case WAI_OP_DIV_REG:
+        case WAI_OP_LOAD_REG:
+        case WAI_OP_STORE_REG:
+        case WAI_OP_CMP_REG:
             return wai_register_is_valid(ins->a) && wai_register_is_valid(ins->b);
         case WAI_OP_JMP:
+        case WAI_OP_CALL:
+        case WAI_OP_JE:
+        case WAI_OP_JNE:
         case WAI_OP_HALT:
+        case WAI_OP_RET:
             return 1;
         case WAI_OP_INVALID:
         default:
@@ -145,9 +158,17 @@ static wai_error_code validate_program(const wai_program *program) {
         }
         if ((ins->opcode == (uint8_t)WAI_OP_JMP ||
              ins->opcode == (uint8_t)WAI_OP_JZ ||
-             ins->opcode == (uint8_t)WAI_OP_JNZ) &&
+             ins->opcode == (uint8_t)WAI_OP_JNZ ||
+             ins->opcode == (uint8_t)WAI_OP_CALL ||
+             ins->opcode == (uint8_t)WAI_OP_JE ||
+             ins->opcode == (uint8_t)WAI_OP_JNE) &&
             (ins->imm < 0 || (uint64_t)ins->imm >= (uint64_t)program->count)) {
             return WAI_ERR_BAD_JUMP;
+        }
+        if ((ins->opcode == (uint8_t)WAI_OP_LOAD_ABS ||
+             ins->opcode == (uint8_t)WAI_OP_STORE_ABS) &&
+            (ins->imm < 0 || (uint64_t)ins->imm > (uint64_t)(WAI_MEMORY_SIZE - sizeof(wai_value)))) {
+            return WAI_ERR_MEMORY_OOB;
         }
     }
     return WAI_OK;

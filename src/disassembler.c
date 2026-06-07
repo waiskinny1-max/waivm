@@ -41,6 +41,30 @@ wai_error_code wai_disassemble_instruction(const wai_instruction *ins, size_t ip
             (void)fprintf(out, "print "); print_reg(out, ins->a); break;
         case WAI_OP_HALT:
             (void)fprintf(out, "halt"); break;
+        case WAI_OP_LOAD_ABS:
+            (void)fprintf(out, "load "); print_reg(out, ins->a); (void)fprintf(out, ", [%lld]", (long long)ins->imm); break;
+        case WAI_OP_LOAD_REG:
+            (void)fprintf(out, "load "); print_reg(out, ins->a); (void)fprintf(out, ", ["); print_reg(out, ins->b); (void)fprintf(out, "]"); break;
+        case WAI_OP_STORE_ABS:
+            (void)fprintf(out, "store [%lld], ", (long long)ins->imm); print_reg(out, ins->a); break;
+        case WAI_OP_STORE_REG:
+            (void)fprintf(out, "store ["); print_reg(out, ins->b); (void)fprintf(out, "], "); print_reg(out, ins->a); break;
+        case WAI_OP_PUSH:
+            (void)fprintf(out, "push "); print_reg(out, ins->a); break;
+        case WAI_OP_POP:
+            (void)fprintf(out, "pop "); print_reg(out, ins->a); break;
+        case WAI_OP_CALL:
+            (void)fprintf(out, "call %lld", (long long)ins->imm); break;
+        case WAI_OP_RET:
+            (void)fprintf(out, "ret"); break;
+        case WAI_OP_CMP_IMM:
+            (void)fprintf(out, "cmp "); print_reg(out, ins->a); (void)fprintf(out, ", %lld", (long long)ins->imm); break;
+        case WAI_OP_CMP_REG:
+            (void)fprintf(out, "cmp "); print_reg(out, ins->a); (void)fprintf(out, ", "); print_reg(out, ins->b); break;
+        case WAI_OP_JE:
+            (void)fprintf(out, "je %lld", (long long)ins->imm); break;
+        case WAI_OP_JNE:
+            (void)fprintf(out, "jne %lld", (long long)ins->imm); break;
         case WAI_OP_INVALID:
         default:
             (void)fprintf(out, ".byte 0x%02x ; invalid opcode", (unsigned)ins->opcode); break;

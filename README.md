@@ -7,8 +7,10 @@ Register-based bytecode VM with a handwritten x86-64 assembly execution core.
 - x86-64 NASM VM runtime for normal execution
 - C17 assembler and disassembler
 - custom `.waibc` bytecode format
-- interactive debugger with stepping, register inspection, disassembly view, and breakpoints
-- 8-register signed integer VM
+- interactive debugger with stepping, register inspection, memory dumps, stack dumps, disassembly view, and breakpoints
+- 8 signed 64-bit general-purpose registers
+- 64 KiB bounds-checked linear memory
+- stack operations and `call`/`ret`
 - fixed-width 12-byte instruction encoding
 - examples, tests, and GitHub Actions CI
 
@@ -29,28 +31,26 @@ Expected output:
 ## Example Program
 
 ```asm
-; factorial of 5
+; call/ret using the VM stack
 
-mov r0, 5      ; counter
-mov r1, 1      ; result
-
-loop:
-  mul r1, r0
-  sub r0, 1
-  jnz r0, loop
-
-print r1
+mov r0, 21
+call double
+print r0
 halt
+
+double:
+  mul r0, 2
+  ret
 ```
 
 ```sh
-./build/waivm run examples/factorial.wai
+./build/waivm run examples/call.wai
 ```
 
 Expected output:
 
 ```text
-120
+42
 ```
 
 ## CLI
@@ -67,10 +67,10 @@ waivm help
 Example bytecode workflow:
 
 ```sh
-./build/waivm asm examples/sum.wai -o sum.waibc
-./build/waivm info sum.waibc
-./build/waivm dis sum.waibc
-./build/waivm run sum.waibc
+./build/waivm asm examples/memory.wai -o memory.waibc
+./build/waivm info memory.waibc
+./build/waivm dis memory.waibc
+./build/waivm run memory.waibc
 ```
 
 ## Instruction Set
@@ -83,13 +83,22 @@ Example bytecode workflow:
 | `sub rX, IMM/rY` | subtract from register |
 | `mul rX, IMM/rY` | multiply register |
 | `div rX, IMM/rY` | signed integer division |
+| `load rX, [ADDR/rY]` | load signed 64-bit value from VM memory |
+| `store [ADDR/rY], rX` | store signed 64-bit value into VM memory |
+| `push rX` | push register value onto VM stack |
+| `pop rX` | pop VM stack value into register |
+| `cmp rX, IMM/rY` | compare and update zero flag |
 | `jmp label` | unconditional jump |
 | `jz rX, label` | jump when register is zero |
 | `jnz rX, label` | jump when register is not zero |
+| `je label` | jump when zero flag is set |
+| `jne label` | jump when zero flag is clear |
+| `call label` | push return address and jump |
+| `ret` | pop return address and jump |
 | `print rX` | print register value |
 | `halt` | stop execution |
 
-Registers are signed 64-bit values. Division by zero, invalid registers, bad opcodes, and invalid jumps fail cleanly.
+Registers are signed 64-bit values. Memory is 64 KiB, byte-addressed, and bounds-checked. `load` and `store` operate on 64-bit little-endian values.
 
 ## Bytecode Format
 
@@ -100,7 +109,7 @@ Header:
 | Offset | Size | Field |
 |---:|---:|---|
 | 0 | 4 | magic bytes: `WAI0` |
-| 4 | 2 | version: `1` |
+| 4 | 2 | version: `3` |
 | 6 | 2 | header size: `32` |
 | 8 | 2 | instruction size: `12` |
 | 10 | 2 | register count: `8` |
@@ -116,7 +125,7 @@ Instruction:
 | 1 | 1 | operand `a` |
 | 2 | 1 | operand `b` |
 | 3 | 1 | reserved operand `c` |
-| 4 | 8 | signed immediate / jump target |
+| 4 | 8 | signed immediate / address / jump target |
 
 ## Architecture
 
@@ -132,7 +141,7 @@ See [`docs/architecture.md`](docs/architecture.md) and [`docs/vm-abi.md`](docs/v
 ## Debugger
 
 ```sh
-./build/waivm debug examples/sum.wai
+./build/waivm debug examples/call.wai
 ```
 
 Useful commands:
@@ -142,6 +151,8 @@ help
 regs
 ip
 dis
+mem 0 64
+stack 8
 step
 break 5
 continue
@@ -170,7 +181,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-Tests cover assembler parsing, VM execution, bytecode write/read, disassembly, debugger command flow, and basic error handling.
+Tests cover assembler parsing, VM execution, bytecode write/read, disassembly, debugger command flow, stack/call behavior, memory behavior, and basic error handling.
 
 ## Roadmap
 
@@ -184,6 +195,9 @@ Current:
 
 - register VM
 - arithmetic and branch instructions
+- bounds-checked linear memory
+- stack operations
+- `call`/`ret`
 - handwritten NASM execution loop
 - C17 source assembler
 - `.waibc` bytecode writer/reader
@@ -195,8 +209,7 @@ Current:
 
 Not implemented yet:
 
-- stack frames
-- function calls
+- stack frames or local variable ABI
 - heap allocation
 - strings
 - floating point values
